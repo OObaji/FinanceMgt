@@ -209,368 +209,370 @@
         import { getFirestore, collection, addDoc, doc, deleteDoc, onSnapshot, setDoc, writeBatch, getDocs, query, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-        // --- View & Menu Switching ---
-        const landingPageView = document.getElementById('landing-page-view');
-        const trackerAppView = document.getElementById('tracker-app-view');
-        const launchBtn = document.getElementById('launch-app-btn');
-        const sideMenu = document.getElementById('side-menu');
-        const menuBtn = document.getElementById('menu-btn');
-        const closeMenuBtn = document.getElementById('close-menu-btn');
-        const logoutBtn = document.getElementById('logout-btn');
-        const manageCategoriesBtn = document.getElementById('manage-categories-btn');
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- View & Menu Switching ---
+            const landingPageView = document.getElementById('landing-page-view');
+            const trackerAppView = document.getElementById('tracker-app-view');
+            const launchBtn = document.getElementById('launch-app-btn');
+            const sideMenu = document.getElementById('side-menu');
+            const menuBtn = document.getElementById('menu-btn');
+            const closeMenuBtn = document.getElementById('close-menu-btn');
+            const logoutBtn = document.getElementById('logout-btn');
+            const manageCategoriesBtn = document.getElementById('manage-categories-btn');
 
-        function showAppView() {
-            landingPageView.classList.add('hidden');
-            trackerAppView.classList.remove('hidden');
-            menuBtn.classList.remove('hidden');
-            document.body.classList.remove('landing-view');
-            document.body.style.overflow = 'auto';
-            stopLandingBackgroundAnimation();
-            startAppBackgroundAnimation();
-            document.getElementById('interactive-bg').style.display = 'none';
-        }
-
-        function showLandingView() {
-            landingPageView.classList.remove('hidden');
-            trackerAppView.classList.add('hidden');
-            menuBtn.classList.add('hidden');
-            document.body.classList.add('landing-view');
-            document.body.style.overflow = 'hidden';
-            document.getElementById('interactive-bg').style.display = 'block';
-            stopAppBackgroundAnimation();
-            startLandingBackgroundAnimation(); 
-        }
-
-        launchBtn.addEventListener('click', (e) => { e.preventDefault(); showAppView(); });
-        menuBtn.addEventListener('click', () => sideMenu.style.width = "250px");
-        closeMenuBtn.addEventListener('click', () => sideMenu.style.width = "0");
-        logoutBtn.addEventListener('click', (e) => { e.preventDefault(); showLandingView(); });
-
-        // --- Background Animations ---
-        const landingCanvas = document.getElementById('interactive-bg');
-        const landingCtx = landingCanvas.getContext('2d');
-        let landingAnimationId;
-        let landingMoneyNotes = [];
-        const moneyColors = ['#aae0fa', '#f5f5a1', '#d8b8e8', '#f7c58d', '#f5b8b8'];
-        const mouse = { x: null, y: null, radius: 100 };
-
-        class LandingMoneyNote {
-            constructor(x, y, width, height, color, speed) { this.x = x; this.y = y; this.width = width; this.height = height; this.color = color; this.speed = speed; this.angle = Math.random() * 360; this.baseSpeed = speed; }
-            update() { let dx = this.x - mouse.x; let dy = this.y - mouse.y; let distance = Math.sqrt(dx * dx + dy * dy); if (distance < mouse.radius) { const forceDirectionX = dx / distance; const forceDirectionY = dy / distance; const force = (mouse.radius - distance) / mouse.radius; this.x += forceDirectionX * force * 2; this.y += forceDirectionY * force * 2; this.speed = this.baseSpeed * 1.5; } else { this.speed = this.baseSpeed; } this.y -= this.speed; this.angle += this.speed / 5; if (this.y < -this.height) { this.y = landingCanvas.height; this.x = Math.random() * landingCanvas.width; } }
-            draw() { landingCtx.save(); landingCtx.translate(this.x, this.y); landingCtx.rotate(this.angle * Math.PI / 180); landingCtx.fillStyle = this.color; landingCtx.globalAlpha = 0.7; landingCtx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height); landingCtx.fillStyle = 'rgba(0,0,0,0.5)'; landingCtx.font = `${this.height / 2}px 'Roboto Slab'`; landingCtx.textAlign = 'center'; landingCtx.textBaseline = 'middle'; landingCtx.fillText('£', 0, 0); landingCtx.restore(); }
-        }
-
-        function initLandingBackground() { landingCanvas.width = window.innerWidth; landingCanvas.height = window.innerHeight; landingMoneyNotes = []; for (let i = 0; i < 30; i++) { const width = 80; const height = 40; const x = Math.random() * landingCanvas.width; const y = Math.random() * landingCanvas.height; const color = moneyColors[Math.floor(Math.random() * moneyColors.length)]; const speed = Math.random() * 0.5 + 0.2; landingMoneyNotes.push(new LandingMoneyNote(x, y, width, height, color, speed)); } }
-        function animateLandingBackground() { landingCtx.clearRect(0, 0, landingCanvas.width, landingCanvas.height); landingMoneyNotes.forEach(note => { note.update(); note.draw(); }); landingAnimationId = requestAnimationFrame(animateLandingBackground); }
-        function startLandingBackgroundAnimation() { if (landingAnimationId) cancelAnimationFrame(landingAnimationId); initLandingBackground(); animateLandingBackground(); }
-        function stopLandingBackgroundAnimation() { if (landingAnimationId) cancelAnimationFrame(landingAnimationId); }
-        
-        const appCanvas = document.getElementById('app-bg');
-        const appCtx = appCanvas.getContext('2d');
-        let appAnimationId;
-        let appMoneyNotes = [];
-
-        class AppMoneyNote extends LandingMoneyNote {
-            update() { this.y -= this.speed; this.angle += this.speed / 10; if (this.y < -this.height) { this.y = appCanvas.height; this.x = Math.random() * appCanvas.width; } }
-            draw() { appCtx.save(); appCtx.translate(this.x, this.y); appCtx.rotate(this.angle * Math.PI / 180); appCtx.fillStyle = this.color; appCtx.globalAlpha = 0.15; appCtx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height); appCtx.restore(); }
-        }
-
-        function initAppBackground() { appCanvas.width = window.innerWidth; appCanvas.height = window.innerHeight; appMoneyNotes = []; for (let i = 0; i < 20; i++) { const width = 120; const height = 60; const x = Math.random() * appCanvas.width; const y = Math.random() * appCanvas.height; const color = moneyColors[Math.floor(Math.random() * moneyColors.length)]; const speed = Math.random() * 0.2 + 0.1; appMoneyNotes.push(new AppMoneyNote(x, y, width, height, color, speed)); } }
-        function animateAppBackground() { appCtx.clearRect(0, 0, appCanvas.width, appCanvas.height); appMoneyNotes.forEach(note => { note.update(); note.draw(); }); appAnimationId = requestAnimationFrame(animateAppBackground); }
-        function startAppBackgroundAnimation() { appCanvas.classList.remove('hidden'); if (appAnimationId) cancelAnimationFrame(appAnimationId); initAppBackground(); animateAppBackground(); }
-        function stopAppBackgroundAnimation() { appCanvas.classList.add('hidden'); if (appAnimationId) cancelAnimationFrame(appAnimationId); }
-
-        window.addEventListener('resize', () => { initLandingBackground(); initAppBackground(); });
-        window.addEventListener('mousemove', (e) => { mouse.x = e.x; mouse.y = e.y; });
-        startLandingBackgroundAnimation();
-
-        // --- Finance Tracker App Logic ---
-        const rawConfig = typeof __firebase_config !== 'undefined' && __firebase_config ? __firebase_config : '{}';
-        const firebaseConfig = JSON.parse(rawConfig);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-finance-app';
-        
-        let app, db, auth, userId;
-        try { app = initializeApp(firebaseConfig); db = getFirestore(app); auth = getAuth(app); } catch (e) { console.error("Firebase initialization failed:", e); }
-
-        let allAllocatedFunds = []; let allSources = []; let allPurposes = [];
-        const defaultSources = ['Overtime', 'Salary'];
-        const defaultPurposes = ['Rent', 'Income Tax', 'National Insurance', 'Car Insurance', 'Vanquis', 'Barclayscard', 'CapitalOne', 'NatWest', 'Outing', 'Emergency Savings', 'Investment'];
-        let dailyTotals = {}; let currentCardToDelete = null; let currentDate = new Date();
-
-        onAuthStateChanged(auth, user => {
-            if (user) {
-                userId = user.uid;
-                listenForAllocations();
-                listenForSources(); 
-                listenForPurposes();
-            } else {
-                signInAnonymously(auth).catch(error => console.error("Anonymous sign-in failed:", error));
+            function showAppView() {
+                landingPageView.classList.add('hidden');
+                trackerAppView.classList.remove('hidden');
+                menuBtn.classList.remove('hidden');
+                document.body.classList.remove('landing-view');
+                document.body.style.overflow = 'auto';
+                stopLandingBackgroundAnimation();
+                startAppBackgroundAnimation();
+                document.getElementById('interactive-bg').style.display = 'none';
             }
-        });
 
-        const allocatableCardsContainer = document.getElementById('allocatable-cards-container');
-        const allocatedFundsContainer = document.getElementById('allocated-funds-container');
-        const allocationModal = document.getElementById('allocation-modal');
-        const allocationForm = document.getElementById('allocation-form');
-        const detailsModal = document.getElementById('details-modal');
-        const detailsContent = document.getElementById('details-content');
-        const calendarBody = document.getElementById('calendar-body');
-        const monthYearEl = document.getElementById('month-year');
-        const allocatedMonthNameEl = document.getElementById('allocated-month-name');
-        const sourceDropdown = document.getElementById('source');
-        const purposeDropdown = document.getElementById('purpose');
-        const cardValues = [10, 20, 50, 100, 200, 500, 1000, 'Custom'];
-        const managementModal = document.getElementById('management-modal');
-        const sourcesManagementContainer = document.getElementById('sources-management-container');
-        const purposesManagementContainer = document.getElementById('purposes-management-container');
-        const closeManagementModalBtn = document.getElementById('close-management-modal');
-
-        function createCard(value, isAllocated = false, id = null, details = {}) {
-            const card = document.createElement('div');
-            const isCustom = value === 'Custom';
-            let cardColorClass;
-            if (isAllocated) {
-                const amount = details.amount;
-                if (amount <= 10) cardColorClass = 'card-10'; else if (amount <= 20) cardColorClass = 'card-20'; else if (amount <= 50) cardColorClass = 'card-50'; else if (amount <= 100) cardColorClass = 'card-100'; else if (amount <= 200) cardColorClass = 'card-200'; else if (amount <= 500) cardColorClass = 'card-500'; else if (amount <= 1000) cardColorClass = 'card-1000'; else cardColorClass = 'card-custom';
-            } else { cardColorClass = `card-${isCustom ? 'custom' : value}`; }
-            card.className = `monopoly-card ${cardColorClass} p-2 flex flex-col justify-center items-center`;
-            card.dataset.id = id;
-            if (isAllocated) {
-                const formattedDate = new Date(details.date + 'T00:00:00').toLocaleDateString('en-GB');
-                card.innerHTML = `<div class="font-bold text-lg leading-tight">£${details.amount.toFixed(2)}</div><div class="text-xs mt-1 text-gray-700">${formattedDate}</div>`;
-                card.dataset.details = JSON.stringify(details);
-                card.addEventListener('click', () => showDetailsModal(card));
-            } else {
-                card.classList.add('draggable');
-                card.textContent = isCustom ? 'Custom' : `£${value}`;
-                card.dataset.value = value;
-                card.draggable = true;
-                card.addEventListener('dragstart', (e) => e.dataTransfer.setData('text/plain', e.target.dataset.value));
+            function showLandingView() {
+                landingPageView.classList.remove('hidden');
+                trackerAppView.classList.add('hidden');
+                menuBtn.classList.add('hidden');
+                document.body.classList.add('landing-view');
+                document.body.style.overflow = 'hidden';
+                document.getElementById('interactive-bg').style.display = 'block';
+                stopAppBackgroundAnimation();
+                startLandingBackgroundAnimation(); 
             }
-            return card;
-        }
 
-        function populateAllocatableCards() { allocatableCardsContainer.innerHTML = ''; cardValues.forEach(value => allocatableCardsContainer.appendChild(createCard(value))); }
-        allocatedFundsContainer.addEventListener('dragover', e => { e.preventDefault(); allocatedFundsContainer.classList.add('bg-green-100'); });
-        allocatedFundsContainer.addEventListener('dragleave', () => allocatedFundsContainer.classList.remove('bg-green-100'));
-        allocatedFundsContainer.addEventListener('drop', e => { e.preventDefault(); allocatedFundsContainer.classList.remove('bg-green-100'); showAllocationModal(e.dataTransfer.getData('text/plain')); });
+            launchBtn.addEventListener('click', (e) => { e.preventDefault(); showAppView(); });
+            menuBtn.addEventListener('click', () => sideMenu.style.width = "250px");
+            closeMenuBtn.addEventListener('click', () => sideMenu.style.width = "0");
+            logoutBtn.addEventListener('click', (e) => { e.preventDefault(); showLandingView(); });
 
-        function showAllocationModal(value) {
-            allocationForm.reset();
-            const amountInput = document.getElementById('amount');
-            amountInput.classList.remove('border-red-500');
-            amountInput.value = (value !== 'Custom') ? value : '';
-            amountInput.readOnly = (value !== 'Custom');
-            document.getElementById('date').valueAsDate = new Date();
-            if(allSources.length > 0) sourceDropdown.value = 'Overtime';
-            if(allPurposes.length > 0) purposeDropdown.value = 'Rent';
-            allocationModal.classList.remove('hidden');
-        }
+            // --- Background Animations ---
+            const landingCanvas = document.getElementById('interactive-bg');
+            const landingCtx = landingCanvas.getContext('2d');
+            let landingAnimationId;
+            let landingMoneyNotes = [];
+            const moneyColors = ['#aae0fa', '#f5f5a1', '#d8b8e8', '#f7c58d', '#f5b8b8'];
+            const mouse = { x: null, y: null, radius: 100 };
 
-        function hideAllocationModal() { allocationModal.classList.add('hidden'); }
-        function showDetailsModal(card) {
-            const details = JSON.parse(card.dataset.details);
-            currentCardToDelete = card.dataset.id;
-            detailsContent.innerHTML = `<p class="mb-2"><strong>Amount:</strong> £${details.amount.toFixed(2)}</p><p class="mb-2"><strong>Source:</strong> ${details.source}</p><p class="mb-2"><strong>Purpose:</strong> ${details.purpose}</p><p><strong>Date:</strong> ${new Date(details.date + 'T00:00:00').toLocaleDateString('en-GB')}</p>`;
-            detailsModal.classList.remove('hidden');
-        }
-        function hideDetailsModal() { detailsModal.classList.add('hidden'); currentCardToDelete = null; }
-
-        document.getElementById('cancel-allocation').addEventListener('click', hideAllocationModal);
-        document.getElementById('close-details').addEventListener('click', hideDetailsModal);
-        document.getElementById('prev-month').addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() - 1); renderCalendar(); });
-        document.getElementById('next-month').addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() + 1); renderCalendar(); });
-
-        allocationForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            if (!userId) return console.error("User not signed in.");
-            const amountInput = document.getElementById('amount');
-            const amountValue = parseFloat(amountInput.value);
-            amountInput.classList.remove('border-red-500');
-            if (isNaN(amountValue) || amountValue <= 0) {
-                amountInput.classList.add('border-red-500', 'border-2');
-                return amountInput.focus();
+            class LandingMoneyNote {
+                constructor(x, y, width, height, color, speed) { this.x = x; this.y = y; this.width = width; this.height = height; this.color = color; this.speed = speed; this.angle = Math.random() * 360; this.baseSpeed = speed; }
+                update() { let dx = this.x - mouse.x; let dy = this.y - mouse.y; let distance = Math.sqrt(dx * dx + dy * dy); if (distance < mouse.radius) { const forceDirectionX = dx / distance; const forceDirectionY = dy / distance; const force = (mouse.radius - distance) / mouse.radius; this.x += forceDirectionX * force * 2; this.y += forceDirectionY * force * 2; this.speed = this.baseSpeed * 1.5; } else { this.speed = this.baseSpeed; } this.y -= this.speed; this.angle += this.speed / 5; if (this.y < -this.height) { this.y = landingCanvas.height; this.x = Math.random() * landingCanvas.width; } }
+                draw() { landingCtx.save(); landingCtx.translate(this.x, this.y); landingCtx.rotate(this.angle * Math.PI / 180); landingCtx.fillStyle = this.color; landingCtx.globalAlpha = 0.7; landingCtx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height); landingCtx.fillStyle = 'rgba(0,0,0,0.5)'; landingCtx.font = `${this.height / 2}px 'Roboto Slab'`; landingCtx.textAlign = 'center'; landingCtx.textBaseline = 'middle'; landingCtx.fillText('£', 0, 0); landingCtx.restore(); }
             }
-            const newAllocation = { amount: amountValue, source: sourceDropdown.value, purpose: purposeDropdown.value, date: document.getElementById('date').value };
-            try {
-                await addDoc(collection(db, `artifacts/${appId}/users/${userId}/allocations`), newAllocation);
-                hideAllocationModal();
-            } catch (error) { console.error("Error adding document: ", error); }
-        });
 
-        document.getElementById('delete-card').addEventListener('click', async () => {
-            if (currentCardToDelete && userId) {
-                try {
-                    await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/allocations`, currentCardToDelete));
-                    hideDetailsModal();
-                } catch (error) { console.error("Error removing document: ", error); }
-            }
-        });
-
-        // --- Category Management Logic ---
-        closeManagementModalBtn.addEventListener('click', () => managementModal.classList.add('hidden'));
-        manageCategoriesBtn.addEventListener('click', () => {
-            populateCategoryManagementList('source');
-            populateCategoryManagementList('purpose');
-            managementModal.classList.remove('hidden');
-        });
-        
-        function refreshManagementModal() {
-            if (!managementModal.classList.contains('hidden')) {
-                populateCategoryManagementList('source');
-                populateCategoryManagementList('purpose');
-            }
-        }
-
-        function populateCategoryManagementList(type) {
-            const container = type === 'source' ? sourcesManagementContainer : purposesManagementContainer;
-            const list = type === 'source' ? allSources : allPurposes;
-            const defaults = type === 'source' ? defaultSources : defaultPurposes;
+            function initLandingBackground() { landingCanvas.width = window.innerWidth; landingCanvas.height = window.innerHeight; landingMoneyNotes = []; for (let i = 0; i < 30; i++) { const width = 80; const height = 40; const x = Math.random() * landingCanvas.width; const y = Math.random() * landingCanvas.height; const color = moneyColors[Math.floor(Math.random() * moneyColors.length)]; const speed = Math.random() * 0.5 + 0.2; landingMoneyNotes.push(new LandingMoneyNote(x, y, width, height, color, speed)); } }
+            function animateLandingBackground() { landingCtx.clearRect(0, 0, landingCanvas.width, landingCanvas.height); landingMoneyNotes.forEach(note => { note.update(); note.draw(); }); landingAnimationId = requestAnimationFrame(animateLandingBackground); }
+            function startLandingBackgroundAnimation() { if (landingAnimationId) cancelAnimationFrame(landingAnimationId); initLandingBackground(); animateLandingBackground(); }
+            function stopLandingBackgroundAnimation() { if (landingAnimationId) cancelAnimationFrame(landingAnimationId); }
             
-            container.innerHTML = `<h4 class="text-lg font-semibold mb-2">${type.charAt(0).toUpperCase() + type.slice(1)}s</h4><div class="space-y-2 max-h-64 overflow-y-auto border p-2 rounded"></div><div class="mt-2 flex gap-2"><input type="text" placeholder="Add new..." class="new-category-input w-full p-2 border rounded"><button class="add-category-btn px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 shrink-0">Add</button></div>`;
-            const listContainer = container.querySelector('.space-y-2');
+            const appCanvas = document.getElementById('app-bg');
+            const appCtx = appCanvas.getContext('2d');
+            let appAnimationId;
+            let appMoneyNotes = [];
 
-            list.forEach(item => {
-                const isDefault = defaults.includes(item);
-                const itemDiv = document.createElement('div');
-                itemDiv.className = 'flex items-center justify-between p-2 border rounded';
-                itemDiv.innerHTML = `
-                    <span class="item-name">${item}</span>
-                    <div class="item-actions">
-                        ${isDefault ? '<span class="text-xs text-gray-400 mr-2">Default</span>' : `
-                        <button class="edit-btn text-blue-500 hover:text-blue-700 mr-2">Edit</button>
-                        <button class="delete-btn text-red-500 hover:text-red-700">Delete</button>`}
-                    </div>
-                `;
-                listContainer.appendChild(itemDiv);
+            class AppMoneyNote extends LandingMoneyNote {
+                update() { this.y -= this.speed; this.angle += this.speed / 10; if (this.y < -this.height) { this.y = appCanvas.height; this.x = Math.random() * appCanvas.width; } }
+                draw() { appCtx.save(); appCtx.translate(this.x, this.y); appCtx.rotate(this.angle * Math.PI / 180); appCtx.fillStyle = this.color; appCtx.globalAlpha = 0.15; appCtx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height); appCtx.restore(); }
+            }
 
-                if (!isDefault) {
-                    itemDiv.querySelector('.edit-btn').addEventListener('click', () => {
-                        const newName = prompt(`Edit category name for "${item}":`, item);
-                        if (newName) {
-                            editCategory(item, newName.trim(), type);
-                        }
-                    });
-                    itemDiv.querySelector('.delete-btn').addEventListener('click', () => deleteCategory(item, type));
+            function initAppBackground() { appCanvas.width = window.innerWidth; appCanvas.height = window.innerHeight; appMoneyNotes = []; for (let i = 0; i < 20; i++) { const width = 120; const height = 60; const x = Math.random() * appCanvas.width; const y = Math.random() * appCanvas.height; const color = moneyColors[Math.floor(Math.random() * moneyColors.length)]; const speed = Math.random() * 0.2 + 0.1; appMoneyNotes.push(new AppMoneyNote(x, y, width, height, color, speed)); } }
+            function animateAppBackground() { appCtx.clearRect(0, 0, appCanvas.width, appCanvas.height); appMoneyNotes.forEach(note => { note.update(); note.draw(); }); appAnimationId = requestAnimationFrame(animateAppBackground); }
+            function startAppBackgroundAnimation() { appCanvas.classList.remove('hidden'); if (appAnimationId) cancelAnimationFrame(appAnimationId); initAppBackground(); animateAppBackground(); }
+            function stopAppBackgroundAnimation() { appCanvas.classList.add('hidden'); if (appAnimationId) cancelAnimationFrame(appAnimationId); }
+
+            window.addEventListener('resize', () => { initLandingBackground(); initAppBackground(); });
+            window.addEventListener('mousemove', (e) => { mouse.x = e.x; mouse.y = e.y; });
+            startLandingBackgroundAnimation();
+
+            // --- Finance Tracker App Logic ---
+            const rawConfig = typeof __firebase_config !== 'undefined' && __firebase_config ? __firebase_config : '{}';
+            const firebaseConfig = JSON.parse(rawConfig);
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-finance-app';
+            
+            let app, db, auth, userId;
+            try { app = initializeApp(firebaseConfig); db = getFirestore(app); auth = getAuth(app); } catch (e) { console.error("Firebase initialization failed:", e); document.body.innerHTML = "Error initializing application."; return; }
+
+            let allAllocatedFunds = []; let allSources = []; let allPurposes = [];
+            const defaultSources = ['Overtime', 'Salary'];
+            const defaultPurposes = ['Rent', 'Income Tax', 'National Insurance', 'Car Insurance', 'Vanquis', 'Barclayscard', 'CapitalOne', 'NatWest', 'Outing', 'Emergency Savings', 'Investment'];
+            let dailyTotals = {}; let currentCardToDelete = null; let currentDate = new Date();
+
+            onAuthStateChanged(auth, user => {
+                if (user) {
+                    userId = user.uid;
+                    listenForAllocations();
+                    listenForSources(); 
+                    listenForPurposes();
+                } else {
+                    signInAnonymously(auth).catch(error => console.error("Anonymous sign-in failed:", error));
                 }
             });
-            
-            container.querySelector('.add-category-btn').addEventListener('click', () => {
-                const input = container.querySelector('.new-category-input');
-                addCategory(input.value, type);
-                input.value = '';
+
+            const allocatableCardsContainer = document.getElementById('allocatable-cards-container');
+            const allocatedFundsContainer = document.getElementById('allocated-funds-container');
+            const allocationModal = document.getElementById('allocation-modal');
+            const allocationForm = document.getElementById('allocation-form');
+            const detailsModal = document.getElementById('details-modal');
+            const detailsContent = document.getElementById('details-content');
+            const calendarBody = document.getElementById('calendar-body');
+            const monthYearEl = document.getElementById('month-year');
+            const allocatedMonthNameEl = document.getElementById('allocated-month-name');
+            const sourceDropdown = document.getElementById('source');
+            const purposeDropdown = document.getElementById('purpose');
+            const cardValues = [10, 20, 50, 100, 200, 500, 1000, 'Custom'];
+            const managementModal = document.getElementById('management-modal');
+            const sourcesManagementContainer = document.getElementById('sources-management-container');
+            const purposesManagementContainer = document.getElementById('purposes-management-container');
+            const closeManagementModalBtn = document.getElementById('close-management-modal');
+
+            function createCard(value, isAllocated = false, id = null, details = {}) {
+                const card = document.createElement('div');
+                const isCustom = value === 'Custom';
+                let cardColorClass;
+                if (isAllocated) {
+                    const amount = details.amount;
+                    if (amount <= 10) cardColorClass = 'card-10'; else if (amount <= 20) cardColorClass = 'card-20'; else if (amount <= 50) cardColorClass = 'card-50'; else if (amount <= 100) cardColorClass = 'card-100'; else if (amount <= 200) cardColorClass = 'card-200'; else if (amount <= 500) cardColorClass = 'card-500'; else if (amount <= 1000) cardColorClass = 'card-1000'; else cardColorClass = 'card-custom';
+                } else { cardColorClass = `card-${isCustom ? 'custom' : value}`; }
+                card.className = `monopoly-card ${cardColorClass} p-2 flex flex-col justify-center items-center`;
+                card.dataset.id = id;
+                if (isAllocated) {
+                    const formattedDate = new Date(details.date + 'T00:00:00').toLocaleDateString('en-GB');
+                    card.innerHTML = `<div class="font-bold text-lg leading-tight">£${details.amount.toFixed(2)}</div><div class="text-xs mt-1 text-gray-700">${formattedDate}</div>`;
+                    card.dataset.details = JSON.stringify(details);
+                    card.addEventListener('click', () => showDetailsModal(card));
+                } else {
+                    card.classList.add('draggable');
+                    card.textContent = isCustom ? 'Custom' : `£${value}`;
+                    card.dataset.value = value;
+                    card.draggable = true;
+                    card.addEventListener('dragstart', (e) => e.dataTransfer.setData('text/plain', e.target.dataset.value));
+                }
+                return card;
+            }
+
+            function populateAllocatableCards() { allocatableCardsContainer.innerHTML = ''; cardValues.forEach(value => allocatableCardsContainer.appendChild(createCard(value))); }
+            allocatedFundsContainer.addEventListener('dragover', e => { e.preventDefault(); allocatedFundsContainer.classList.add('bg-green-100'); });
+            allocatedFundsContainer.addEventListener('dragleave', () => allocatedFundsContainer.classList.remove('bg-green-100'));
+            allocatedFundsContainer.addEventListener('drop', e => { e.preventDefault(); allocatedFundsContainer.classList.remove('bg-green-100'); showAllocationModal(e.dataTransfer.getData('text/plain')); });
+
+            function showAllocationModal(value) {
+                allocationForm.reset();
+                const amountInput = document.getElementById('amount');
+                amountInput.classList.remove('border-red-500');
+                amountInput.value = (value !== 'Custom') ? value : '';
+                amountInput.readOnly = (value !== 'Custom');
+                document.getElementById('date').valueAsDate = new Date();
+                if(allSources.length > 0) sourceDropdown.value = 'Overtime';
+                if(allPurposes.length > 0) purposeDropdown.value = 'Rent';
+                allocationModal.classList.remove('hidden');
+            }
+
+            function hideAllocationModal() { allocationModal.classList.add('hidden'); }
+            function showDetailsModal(card) {
+                const details = JSON.parse(card.dataset.details);
+                currentCardToDelete = card.dataset.id;
+                detailsContent.innerHTML = `<p class="mb-2"><strong>Amount:</strong> £${details.amount.toFixed(2)}</p><p class="mb-2"><strong>Source:</strong> ${details.source}</p><p class="mb-2"><strong>Purpose:</strong> ${details.purpose}</p><p><strong>Date:</strong> ${new Date(details.date + 'T00:00:00').toLocaleDateString('en-GB')}</p>`;
+                detailsModal.classList.remove('hidden');
+            }
+            function hideDetailsModal() { detailsModal.classList.add('hidden'); currentCardToDelete = null; }
+
+            document.getElementById('cancel-allocation').addEventListener('click', hideAllocationModal);
+            document.getElementById('close-details').addEventListener('click', hideDetailsModal);
+            document.getElementById('prev-month').addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() - 1); renderCalendar(); });
+            document.getElementById('next-month').addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() + 1); renderCalendar(); });
+
+            allocationForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                if (!userId) return console.error("User not signed in.");
+                const amountInput = document.getElementById('amount');
+                const amountValue = parseFloat(amountInput.value);
+                amountInput.classList.remove('border-red-500');
+                if (isNaN(amountValue) || amountValue <= 0) {
+                    amountInput.classList.add('border-red-500', 'border-2');
+                    return amountInput.focus();
+                }
+                const newAllocation = { amount: amountValue, source: sourceDropdown.value, purpose: purposeDropdown.value, date: document.getElementById('date').value };
+                try {
+                    await addDoc(collection(db, `artifacts/${appId}/users/${userId}/allocations`), newAllocation);
+                    hideAllocationModal();
+                } catch (error) { console.error("Error adding document: ", error); }
             });
-        }
-        
-        async function addCategory(name, type) {
-            const newName = name.trim();
-            const fullList = type === 'source' ? allSources : allPurposes;
-            const defaults = type === 'source' ? defaultSources : defaultPurposes;
-            if (!newName || fullList.find(item => item.toLowerCase() === newName.toLowerCase())) return;
-            
-            const customList = fullList.filter(item => !defaults.includes(item));
-            customList.push(newName);
-            
-            const docRef = doc(db, `artifacts/${appId}/users/${userId}/${type}s/custom`);
-            try { await setDoc(docRef, { names: customList }); } catch (e) { console.error("Error adding category:", e); }
-        }
 
-        async function deleteCategory(name, type) {
-            const allocationsRef = collection(db, `artifacts/${appId}/users/${userId}/allocations`);
-            const q = query(allocationsRef, where(type, "==", name));
-            const querySnapshot = await getDocs(q);
-            if (!querySnapshot.empty) {
-                alert(`Cannot delete "${name}" because it is currently used by ${querySnapshot.size} allocation(s). Please edit or delete those allocations first.`);
-                return;
+            document.getElementById('delete-card').addEventListener('click', async () => {
+                if (currentCardToDelete && userId) {
+                    try {
+                        await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/allocations`, currentCardToDelete));
+                        hideDetailsModal();
+                    } catch (error) { console.error("Error removing document: ", error); }
+                }
+            });
+
+            // --- Category Management Logic ---
+            closeManagementModalBtn.addEventListener('click', () => managementModal.classList.add('hidden'));
+            manageCategoriesBtn.addEventListener('click', () => {
+                populateCategoryManagementList('source');
+                populateCategoryManagementList('purpose');
+                managementModal.classList.remove('hidden');
+            });
+            
+            function refreshManagementModal() {
+                if (!managementModal.classList.contains('hidden')) {
+                    populateCategoryManagementList('source');
+                    populateCategoryManagementList('purpose');
+                }
             }
 
-            if (!confirm(`Are you sure you want to delete "${name}"? This cannot be undone.`)) return;
-            const docRef = doc(db, `artifacts/${appId}/users/${userId}/${type}s/custom`);
-            const defaults = type === 'source' ? defaultSources : defaultPurposes;
-            const currentList = (type === 'source' ? allSources : allPurposes).filter(item => !defaults.includes(item));
-            const newList = currentList.filter(item => item !== name);
-            try { await setDoc(docRef, { names: newList }); } catch (e) { console.error("Error deleting category:", e); }
-        }
+            function populateCategoryManagementList(type) {
+                const container = type === 'source' ? sourcesManagementContainer : purposesManagementContainer;
+                const list = type === 'source' ? allSources : allPurposes;
+                const defaults = type === 'source' ? defaultSources : defaultPurposes;
+                
+                container.innerHTML = `<h4 class="text-lg font-semibold mb-2">${type.charAt(0).toUpperCase() + type.slice(1)}s</h4><div class="space-y-2 max-h-64 overflow-y-auto border p-2 rounded"></div><div class="mt-2 flex gap-2"><input type="text" placeholder="Add new..." class="new-category-input w-full p-2 border rounded"><button class="add-category-btn px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 shrink-0">Add</button></div>`;
+                const listContainer = container.querySelector('.space-y-2');
 
-        async function editCategory(oldName, newName, type) {
-            if (!newName || newName === oldName) return;
-            const currentFullList = type === 'source' ? allSources : allPurposes;
-            if (currentFullList.find(item => item.toLowerCase() === newName.toLowerCase())) { return alert('This category name already exists.'); }
+                list.forEach(item => {
+                    const isDefault = defaults.includes(item);
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'flex items-center justify-between p-2 border rounded';
+                    itemDiv.innerHTML = `
+                        <span class="item-name">${item}</span>
+                        <div class="item-actions">
+                            ${isDefault ? '<span class="text-xs text-gray-400 mr-2">Default</span>' : `
+                            <button class="edit-btn text-blue-500 hover:text-blue-700 mr-2">Edit</button>
+                            <button class="delete-btn text-red-500 hover:text-red-700">Delete</button>`}
+                        </div>
+                    `;
+                    listContainer.appendChild(itemDiv);
 
-            const docRef = doc(db, `artifacts/${appId}/users/${userId}/${type}s/custom`);
-            const defaults = type === 'source' ? defaultSources : defaultPurposes;
-            const currentCustomList = (type === 'source' ? allSources : allPurposes).filter(i => !defaults.includes(i));
-            const newList = currentCustomList.map(item => item === oldName ? newName : item);
-
-            const batch = writeBatch(db);
-            batch.set(docRef, { names: newList });
-
-            const allocationsRef = collection(db, `artifacts/${appId}/users/${userId}/allocations`);
-            const q = query(allocationsRef, where(type, "==", oldName));
-            const querySnapshot = await getDocs(q);
-            querySnapshot.forEach(doc => { const updateData = {}; updateData[type] = newName; batch.update(doc.ref, updateData); });
-            try { await batch.commit(); } catch (e) { console.error("Error updating category:", e); }
-        }
-
-        // --- Dropdown Population ---
-        function listenForSources() {
-            if (!userId) return;
-            const sourcesDocRef = doc(db, `artifacts/${appId}/users/${userId}/sources/custom`);
-            onSnapshot(sourcesDocRef, (docSnap) => { const customSources = docSnap.exists() ? docSnap.data().names || [] : []; allSources = [...new Set([...defaultSources, ...customSources])]; populateSourceDropdown(); refreshManagementModal(); });
-        }
-        function listenForPurposes() {
-            if (!userId) return;
-            const purposesDocRef = doc(db, `artifacts/${appId}/users/${userId}/purposes/custom`);
-            onSnapshot(purposesDocRef, (docSnap) => { const customPurposes = docSnap.exists() ? docSnap.data().names || [] : []; allPurposes = [...new Set([...defaultPurposes, ...customPurposes])]; populatePurposeDropdown(); refreshManagementModal(); });
-        }
-        function populateSourceDropdown() {
-            const selectedValue = sourceDropdown.value; sourceDropdown.innerHTML = '';
-            allSources.forEach(source => { const option = document.createElement('option'); option.value = source; option.textContent = source; sourceDropdown.appendChild(option); });
-            if (allSources.includes(selectedValue)) sourceDropdown.value = selectedValue;
-        }
-        function populatePurposeDropdown() {
-            const selectedValue = purposeDropdown.value; purposeDropdown.innerHTML = '';
-            allPurposes.forEach(purpose => { const option = document.createElement('option'); option.value = purpose; option.textContent = purpose; purposeDropdown.appendChild(option); });
-            if (allPurposes.includes(selectedValue)) purposeDropdown.value = selectedValue;
-        }
-        
-        // --- Data & Calendar Rendering ---
-        function listenForAllocations() {
-            if (!userId) return;
-            const q = collection(db, `artifacts/${appId}/users/${userId}/allocations`);
-            onSnapshot(q, (querySnapshot) => {
-                const fundsFromDB = []; dailyTotals = {};
-                querySnapshot.forEach((doc) => { const fund = { id: doc.id, ...doc.data() }; fundsFromDB.push(fund); dailyTotals[fund.date] = (dailyTotals[fund.date] || 0) + fund.amount; });
-                allAllocatedFunds = fundsFromDB; renderCalendar();
-            }, (error) => console.error("Error listening to allocations:", error));
-        }
-        function renderAllocatedCardsForCurrentMonth() {
-            allocatedFundsContainer.innerHTML = '';
-            const year = currentDate.getFullYear(); const month = currentDate.getMonth() + 1;
-            const monthString = String(month).padStart(2, '0');
-            const filteredFunds = allAllocatedFunds.filter(fund => fund.date.startsWith(`${year}-${monthString}`));
-            filteredFunds.sort((a, b) => new Date(b.date) - new Date(a.date));
-            filteredFunds.forEach(fund => allocatedFundsContainer.appendChild(createCard(null, true, fund.id, fund)));
-        }
-        function renderCalendar() {
-            calendarBody.innerHTML = '';
-            const year = currentDate.getFullYear(), month = currentDate.getMonth();
-            const monthName = currentDate.toLocaleString('default', { month: 'long' });
-            monthYearEl.textContent = `${monthName} ${year}`; allocatedMonthNameEl.textContent = monthName;
-            const firstDayOfMonth = new Date(year, month, 1).getDay(); const daysInMonth = new Date(year, month + 1, 0).getDate();
-            for (let i = 0; i < firstDayOfMonth; i++) calendarBody.insertAdjacentHTML('beforeend', '<div class="calendar-day other-month"></div>');
-            for (let day = 1; day <= daysInMonth; day++) {
-                const dayCell = document.createElement('div'); dayCell.className = 'calendar-day';
-                const today = new Date(); if (day === today.getDate() && month === today.getMonth() && year === today.getFullYear()) dayCell.classList.add('today');
-                const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                const total = dailyTotals[dateKey] || 0;
-                dayCell.innerHTML = `<span class="day-number">${day}</span>${total > 0 ? `<span class="day-amount">£${total.toFixed(2)}</span>` : ''}`;
-                calendarBody.appendChild(dayCell);
+                    if (!isDefault) {
+                        itemDiv.querySelector('.edit-btn').addEventListener('click', () => {
+                            const newName = prompt(`Edit category name for "${item}":`, item);
+                            if (newName) {
+                                editCategory(item, newName.trim(), type);
+                            }
+                        });
+                        itemDiv.querySelector('.delete-btn').addEventListener('click', () => deleteCategory(item, type));
+                    }
+                });
+                
+                container.querySelector('.add-category-btn').addEventListener('click', () => {
+                    const input = container.querySelector('.new-category-input');
+                    addCategory(input.value, type);
+                    input.value = '';
+                });
             }
-            renderAllocatedCardsForCurrentMonth();
-        }
-        
-        populateAllocatableCards();
+            
+            async function addCategory(name, type) {
+                const newName = name.trim();
+                const fullList = type === 'source' ? allSources : allPurposes;
+                const defaults = type === 'source' ? defaultSources : defaultPurposes;
+                if (!newName || fullList.find(item => item.toLowerCase() === newName.toLowerCase())) return;
+                
+                const customList = fullList.filter(item => !defaults.includes(item));
+                customList.push(newName);
+                
+                const docRef = doc(db, `artifacts/${appId}/users/${userId}/${type}s/custom`);
+                try { await setDoc(docRef, { names: customList }); } catch (e) { console.error("Error adding category:", e); }
+            }
+
+            async function deleteCategory(name, type) {
+                const allocationsRef = collection(db, `artifacts/${appId}/users/${userId}/allocations`);
+                const q = query(allocationsRef, where(type, "==", name));
+                const querySnapshot = await getDocs(q);
+                if (!querySnapshot.empty) {
+                    alert(`Cannot delete "${name}" because it is currently used by ${querySnapshot.size} allocation(s). Please edit or delete those allocations first.`);
+                    return;
+                }
+
+                if (!confirm(`Are you sure you want to delete "${name}"? This cannot be undone.`)) return;
+                const docRef = doc(db, `artifacts/${appId}/users/${userId}/${type}s/custom`);
+                const defaults = type === 'source' ? defaultSources : defaultPurposes;
+                const currentList = (type === 'source' ? allSources : allPurposes).filter(item => !defaults.includes(item));
+                const newList = currentList.filter(item => item !== name);
+                try { await setDoc(docRef, { names: newList }); } catch (e) { console.error("Error deleting category:", e); }
+            }
+
+            async function editCategory(oldName, newName, type) {
+                if (!newName || newName === oldName) return;
+                const currentFullList = type === 'source' ? allSources : allPurposes;
+                if (currentFullList.find(item => item.toLowerCase() === newName.toLowerCase())) { return alert('This category name already exists.'); }
+
+                const docRef = doc(db, `artifacts/${appId}/users/${userId}/${type}s/custom`);
+                const defaults = type === 'source' ? defaultSources : defaultPurposes;
+                const currentCustomList = (type === 'source' ? allSources : allPurposes).filter(i => !defaults.includes(i));
+                const newList = currentCustomList.map(item => item === oldName ? newName : item);
+
+                const batch = writeBatch(db);
+                batch.set(docRef, { names: newList });
+
+                const allocationsRef = collection(db, `artifacts/${appId}/users/${userId}/allocations`);
+                const q = query(allocationsRef, where(type, "==", oldName));
+                const querySnapshot = await getDocs(q);
+                querySnapshot.forEach(doc => { const updateData = {}; updateData[type] = newName; batch.update(doc.ref, updateData); });
+                try { await batch.commit(); } catch (e) { console.error("Error updating category:", e); }
+            }
+
+            // --- Dropdown Population ---
+            function listenForSources() {
+                if (!userId) return;
+                const sourcesDocRef = doc(db, `artifacts/${appId}/users/${userId}/sources/custom`);
+                onSnapshot(sourcesDocRef, (docSnap) => { const customSources = docSnap.exists() ? docSnap.data().names || [] : []; allSources = [...new Set([...defaultSources, ...customSources])]; populateSourceDropdown(); refreshManagementModal(); });
+            }
+            function listenForPurposes() {
+                if (!userId) return;
+                const purposesDocRef = doc(db, `artifacts/${appId}/users/${userId}/purposes/custom`);
+                onSnapshot(purposesDocRef, (docSnap) => { const customPurposes = docSnap.exists() ? docSnap.data().names || [] : []; allPurposes = [...new Set([...defaultPurposes, ...customPurposes])]; populatePurposeDropdown(); refreshManagementModal(); });
+            }
+            function populateSourceDropdown() {
+                const selectedValue = sourceDropdown.value; sourceDropdown.innerHTML = '';
+                allSources.forEach(source => { const option = document.createElement('option'); option.value = source; option.textContent = source; sourceDropdown.appendChild(option); });
+                if (allSources.includes(selectedValue)) sourceDropdown.value = selectedValue;
+            }
+            function populatePurposeDropdown() {
+                const selectedValue = purposeDropdown.value; purposeDropdown.innerHTML = '';
+                allPurposes.forEach(purpose => { const option = document.createElement('option'); option.value = purpose; option.textContent = purpose; purposeDropdown.appendChild(option); });
+                if (allPurposes.includes(selectedValue)) purposeDropdown.value = selectedValue;
+            }
+            
+            // --- Data & Calendar Rendering ---
+            function listenForAllocations() {
+                if (!userId) return;
+                const q = collection(db, `artifacts/${appId}/users/${userId}/allocations`);
+                onSnapshot(q, (querySnapshot) => {
+                    const fundsFromDB = []; dailyTotals = {};
+                    querySnapshot.forEach((doc) => { const fund = { id: doc.id, ...doc.data() }; fundsFromDB.push(fund); dailyTotals[fund.date] = (dailyTotals[fund.date] || 0) + fund.amount; });
+                    allAllocatedFunds = fundsFromDB; renderCalendar();
+                }, (error) => console.error("Error listening to allocations:", error));
+            }
+            function renderAllocatedCardsForCurrentMonth() {
+                allocatedFundsContainer.innerHTML = '';
+                const year = currentDate.getFullYear(); const month = currentDate.getMonth() + 1;
+                const monthString = String(month).padStart(2, '0');
+                const filteredFunds = allAllocatedFunds.filter(fund => fund.date.startsWith(`${year}-${monthString}`));
+                filteredFunds.sort((a, b) => new Date(b.date) - new Date(a.date));
+                filteredFunds.forEach(fund => allocatedFundsContainer.appendChild(createCard(null, true, fund.id, fund)));
+            }
+            function renderCalendar() {
+                calendarBody.innerHTML = '';
+                const year = currentDate.getFullYear(), month = currentDate.getMonth();
+                const monthName = currentDate.toLocaleString('default', { month: 'long' });
+                monthYearEl.textContent = `${monthName} ${year}`; allocatedMonthNameEl.textContent = monthName;
+                const firstDayOfMonth = new Date(year, month, 1).getDay(); const daysInMonth = new Date(year, month + 1, 0).getDate();
+                for (let i = 0; i < firstDayOfMonth; i++) calendarBody.insertAdjacentHTML('beforeend', '<div class="calendar-day other-month"></div>');
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const dayCell = document.createElement('div'); dayCell.className = 'calendar-day';
+                    const today = new Date(); if (day === today.getDate() && month === today.getMonth() && year === today.getFullYear()) dayCell.classList.add('today');
+                    const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    const total = dailyTotals[dateKey] || 0;
+                    dayCell.innerHTML = `<span class="day-number">${day}</span>${total > 0 ? `<span class="day-amount">£${total.toFixed(2)}</span>` : ''}`;
+                    calendarBody.appendChild(dayCell);
+                }
+                renderAllocatedCardsForCurrentMonth();
+            }
+            
+            populateAllocatableCards();
+        });
     </script>
 
 </body>
