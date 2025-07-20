@@ -3,15 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Creative Overtime Allocator</title>
+    <title>Personal Finance Manager</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Kameron:wght@400;700&family=Roboto+Slab:wght@400;700&display=swap" rel="stylesheet">
     <style>
+        /* General Body Styles */
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: #111827;
-            color: #E5E7EB;
+            font-family: 'Kameron', serif;
+            background-color: #f0f8ff;
         }
+        
+        body:not(.landing-view) {
+             background-color: #cde6d0;
+        }
+
+        /* Landing Page Specific Styles */
+        body.landing-view {
+            color: #ffffff;
+            overflow: hidden; /* Prevents scrollbars from the canvas */
+        }
+        #interactive-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            background-color: #cde6d0; /* Monopoly board green */
+        }
+        #landing-page-view .content-overlay {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            text-align: center;
+            background: rgba(0, 0, 0, 0.5); /* Darker overlay for text contrast */
+        }
+
+        /* Main App Styles */
         #app-bg {
             position: fixed;
             top: 0;
@@ -19,256 +51,342 @@
             width: 100%;
             height: 100%;
             z-index: -1;
-            background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
         }
-        #app-container {
-            position: relative;
-            z-index: 1;
+        .monopoly-card {
+            font-family: 'Roboto Slab', serif;
+            border: 2px solid #333;
+            border-radius: 10px;
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, border-color 0.2s;
+            box-shadow: 3px 3px 5px rgba(0,0,0,0.2);
+            background-color: #cde6d0;
+            height: 80px;
         }
-        .glass-card {
-            background: rgba(31, 41, 55, 0.6); /* Gray-800 with opacity */
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border-radius: 1rem;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-        }
-        .timeline-item::before {
-            content: '';
-            position: absolute;
-            left: -31px;
-            top: 0;
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            background-color: #3B82F6; /* Blue-500 */
-            border: 4px solid #1F2937;
-            box-shadow: 0 0 10px #3B82F6;
-        }
+        .monopoly-card.draggable { cursor: grab; }
+        .monopoly-card.draggable:active { cursor: grabbing; transform: scale(1.05); }
+        .card-10 { background-color: #aae0fa; }
+        .card-20 { background-color: #f5f5a1; }
+        .card-50 { background-color: #d8b8e8; }
+        .card-100 { background-color: #f7c58d; }
+        .card-200 { background-color: #cde6d0; }
+        .card-500 { background-color: #f5b8b8; }
+        .card-1000 { background-color: #b8d8f8; }
+        .card-custom { background-color: #e0e0e0; }
+        #allocated-funds-container { border: 2px dashed #999; min-height: 200px; }
+
+        /* Calendar Styles */
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
-        .calendar-day { 
-            border: 1px solid transparent; 
-            border-radius: 0.375rem; 
-            min-height: 80px; 
-            padding: 8px; 
-            display: flex; 
-            flex-direction: column; 
-            justify-content: space-between;
-            transition: background-color 0.2s;
-        }
-        .calendar-day:hover {
-            background: rgba(255, 255, 255, 0.05);
-        }
-        .calendar-day.other-month { color: #4B5563; }
-        .calendar-day .day-number { font-weight: 600; }
-        .calendar-day .day-amount { font-size: 0.9rem; font-weight: 700; color: #6EE7B7; }
-        .calendar-day.today { border-color: #6EE7B7; }
+        .calendar-day { border: 1px solid #e2e8f0; border-radius: 0.375rem; min-height: 100px; padding: 8px; display: flex; flex-direction: column; justify-content: space-between; }
+        .calendar-day.other-month { background-color: #f8fafc; color: #94a3b8; }
+        .calendar-day .day-number { font-family: 'Roboto Slab', serif; font-weight: bold; align-self: flex-start; }
+        .calendar-day .day-amount { font-size: 0.9rem; font-weight: bold; color: #16a34a; align-self: flex-end; text-align: right; }
+        .calendar-day.today { background-color: #dbeafe; border-color: #93c5fd; }
+        
+        .hidden { display: none; }
     </style>
 </head>
-<body class="text-gray-200">
-    <canvas id="app-bg"></canvas>
-    <div id="app-container" class="container mx-auto p-4 md:p-8 max-w-6xl">
-        <header class="text-center mb-10">
-            <h1 class="text-4xl md:text-5xl font-bold text-white">Overtime Allocator</h1>
-            <p class="text-lg text-gray-400 mt-2">Visualize where your hard work goes.</p>
-        </header>
+<body class="landing-view">
 
-        <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
-            <!-- Left Column: Calendar & Form -->
-            <div class="lg:col-span-2 flex flex-col gap-8">
-                <div class="glass-card p-6">
-                    <div class="flex justify-between items-center mb-4"><button id="prev-month" class="px-3 py-1 bg-white/10 rounded-md hover:bg-white/20">&lt;</button><h2 id="month-year" class="text-2xl font-bold"></h2><button id="next-month" class="px-3 py-1 bg-white/10 rounded-md hover:bg-white/20">&gt;</button></div>
-                    <div class="calendar-grid text-center font-bold mb-2 text-gray-400"><div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div></div>
-                    <div id="calendar-body" class="calendar-grid"></div>
-                </div>
-                <div class="glass-card p-6">
-                    <div class="flex justify-between items-center mb-4">
-                         <h2 class="text-2xl font-bold">Add Entry</h2>
-                         <button id="manage-categories-btn" title="Manage Categories" class="p-2 rounded-full hover:bg-white/10">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                        </button>
-                    </div>
-                    <form id="allocation-form">
-                        <div class="mb-4"><label for="amount" class="block text-sm font-medium text-gray-400">Amount (£)</label><input type="number" id="amount" step="0.01" class="mt-1 block w-full bg-gray-900/50 border-gray-600 rounded-md shadow-sm" required></div>
-                        <div class="mb-4"><label for="source" class="block text-sm font-medium text-gray-400">Source</label><select id="source" class="mt-1 block w-full bg-gray-900/50 border-gray-600 rounded-md shadow-sm" required></select></div>
-                        <div class="mb-4"><label for="purpose" class="block text-sm font-medium text-gray-400">Purpose</label><select id="purpose" class="mt-1 block w-full bg-gray-900/50 border-gray-600 rounded-md shadow-sm" required></select></div>
-                        <div class="mb-4"><label for="date" class="block text-sm font-medium text-gray-400">Date</label><input type="date" id="date" class="mt-1 block w-full bg-gray-900/50 border-gray-600 rounded-md shadow-sm" required style="color-scheme: dark;"></div>
-                        <button type="submit" class="w-full py-2 px-4 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700">Add to Timeline</button>
-                    </form>
-                </div>
-            </div>
+    <!-- Landing Page View -->
+    <div id="landing-page-view">
+        <canvas id="interactive-bg"></canvas>
+        <div class="content-overlay p-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-white mb-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 18h18v-2H3v2zM5 16V9a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v7"/>
+                <path d="M8 7V4h8v3"/>
+            </svg>
+            <h1 class="text-5xl md:text-7xl font-bold mb-4 text-shadow-lg">Take Control of Your Finances</h1>
+            <p class="text-lg md:text-xl max-w-2xl mb-8">
+                An intuitive, Monopoly-inspired way to track your income, allocate funds, and visualize your financial health day by day.
+            </p>
+            <a href="#" id="launch-app-btn" class="bg-green-500 text-white font-bold py-3 px-8 rounded-full text-lg hover:bg-green-600 transition-transform transform hover:scale-105 shadow-xl">
+                Get started
+            </a>
+        </div>
+    </div>
 
-            <!-- Right Column: Timeline -->
-            <div class="lg:col-span-3">
-                <div class="glass-card p-6 h-full">
-                    <h2 class="text-2xl font-bold mb-6">Allocation Timeline for <span id="allocated-month-name"></span></h2>
-                    <div id="timeline-container" class="relative border-l-2 border-gray-600 ml-5 pl-8 space-y-8 h-[calc(100%-4rem)] overflow-y-auto">
-                        <!-- Timeline items will be injected here -->
+    <!-- Main Finance Tracker App View -->
+    <canvas id="app-bg" class="hidden"></canvas>
+    <div id="tracker-app-view" class="hidden">
+        <div class="container mx-auto p-4 md:p-8 max-w-7xl">
+            <header class="flex items-center justify-center mb-8 text-gray-700">
+                <a href="#" id="home-logo-btn" class="flex items-center gap-2 cursor-pointer">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 18h18v-2H3v2zM5 16V9a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v7"/>
+                        <path d="M8 7V4h8v3"/>
+                    </svg>
+                    <h1 class="text-4xl font-bold" style="font-family: 'Kameron', serif;">Overtime Allocator</h1>
+                </a>
+            </header>
+            <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
+                <div class="lg:col-span-2 flex flex-col gap-8">
+                    <div class="bg-white/80 backdrop-blur-sm p-6 rounded-lg shadow-lg">
+                        <div class="flex justify-between items-center mb-4"><button id="prev-month" class="px-3 py-1 bg-gray-200 rounded-md hover:bg-gray-300">&lt;</button><h2 id="month-year" class="text-2xl font-bold"></h2><button id="next-month" class="px-3 py-1 bg-gray-200 rounded-md hover:bg-gray-300">&gt;</button></div>
+                        <div class="calendar-grid text-center font-bold mb-2 text-gray-600"><div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div></div>
+                        <div id="calendar-body" class="calendar-grid"></div>
                     </div>
+                    <div class="bg-white/80 backdrop-blur-sm p-6 rounded-lg shadow-lg">
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-2xl font-bold text-gray-700">Available Funds</h2>
+                            <button id="manage-categories-btn" title="Manage Categories" class="p-2 rounded-full hover:bg-gray-200">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                            </button>
+                        </div>
+                        <div id="allocatable-cards-container" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"></div>
+                    </div>
+                </div>
+                <div class="lg:col-span-3 bg-white/80 backdrop-blur-sm p-6 rounded-lg shadow-lg">
+                    <h2 class="text-2xl font-bold mb-4 text-gray-700">Allocated Funds for <span id="allocated-month-name"></span></h2>
+                    <div id="allocated-funds-container" class="p-4 rounded-lg grid grid-cols-2 md:grid-cols-3 gap-4 h-[70vh] overflow-y-auto"></div>
                 </div>
             </div>
         </div>
     </div>
-    
+
     <!-- Modals -->
-    <div id="management-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center hidden z-[1001]">
-        <div class="glass-card p-8 w-full max-w-4xl"><h3 class="text-2xl font-bold mb-6 text-gray-200">Manage Categories</h3><div class="grid grid-cols-1 md:grid-cols-2 gap-8"><div id="sources-management-container"></div><div id="purposes-management-container"></div></div><div class="flex justify-end gap-4 mt-6"><button type="button" id="close-management-modal" class="px-4 py-2 bg-gray-600 rounded-md hover:bg-gray-500">Done</button></div></div>
+    <div id="allocation-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md"><h3 class="text-2xl font-bold mb-6 text-gray-700">Allocate Fund</h3><form id="allocation-form"><div class="mb-4"><label for="amount" class="block text-sm font-medium text-gray-700 mb-1">Amount (£)</label><input type="number" id="amount" step="0.01" class="w-full p-2 border border-gray-300 rounded-md transition-colors" required></div><div class="mb-4"><label for="source" class="block text-sm font-medium text-gray-700 mb-1">Source</label><select id="source" class="w-full p-2 border border-gray-300 rounded-md" required></select></div><div class="mb-4"><label for="purpose" class="block text-sm font-medium text-gray-700 mb-1">Purpose</label><select id="purpose" class="w-full p-2 border border-gray-300 rounded-md" required></select></div><div class="mb-4"><label for="date" class="block text-sm font-medium text-gray-700 mb-1">Date</label><input type="date" id="date" class="w-full p-2 border border-gray-300 rounded-md" required></div><div class="flex justify-end gap-4 mt-6"><button type="button" id="cancel-allocation" class="px-4 py-2 bg-gray-300 rounded-md hover:bg-gray-400">Cancel</button><button type="submit" class="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600">Save</button></div></form></div>
+    </div>
+    <div id="details-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md"><h3 class="text-2xl font-bold mb-6 text-gray-700">Allocation Details</h3><div id="details-content" class="text-gray-800"></div><div class="flex justify-end gap-4 mt-6"><button type="button" id="delete-card" class="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600">Delete</button><button type="button" id="close-details" class="px-4 py-2 bg-gray-300 rounded-md hover:bg-gray-400">Close</button></div></div>
+    </div>
+    <div id="management-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-[1001]">
+        <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-4xl"><h3 class="text-2xl font-bold mb-6 text-gray-700">Manage Categories</h3><div class="grid grid-cols-1 md:grid-cols-2 gap-8"><div id="sources-management-container"></div><div id="purposes-management-container"></div></div><div class="flex justify-end gap-4 mt-6"><button type="button" id="close-management-modal" class="px-4 py-2 bg-gray-300 rounded-md hover:bg-gray-400">Done</button></div></div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, doc, deleteDoc, onSnapshot, setDoc, writeBatch, getDocs, query, where, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, doc, deleteDoc, onSnapshot, setDoc, writeBatch, getDocs, query, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
         document.addEventListener('DOMContentLoaded', () => {
+            // --- View & Menu Switching ---
+            const landingPageView = document.getElementById('landing-page-view');
+            const trackerAppView = document.getElementById('tracker-app-view');
+            const launchBtn = document.getElementById('launch-app-btn');
+            const homeLogoBtn = document.getElementById('home-logo-btn');
+            const manageCategoriesBtn = document.getElementById('manage-categories-btn');
+
+            function showAppView() {
+                landingPageView.classList.add('hidden');
+                trackerAppView.classList.remove('hidden');
+                document.body.classList.remove('landing-view');
+                document.body.style.overflow = 'auto';
+                stopLandingBackgroundAnimation();
+                startAppBackgroundAnimation();
+                document.getElementById('interactive-bg').style.display = 'none';
+            }
+
+            function showLandingView() {
+                landingPageView.classList.remove('hidden');
+                trackerAppView.classList.add('hidden');
+                document.body.classList.add('landing-view');
+                document.body.style.overflow = 'hidden';
+                document.getElementById('interactive-bg').style.display = 'block';
+                stopAppBackgroundAnimation();
+                startLandingBackgroundAnimation(); 
+            }
+
+            launchBtn.addEventListener('click', (e) => { e.preventDefault(); showAppView(); });
+            homeLogoBtn.addEventListener('click', (e) => { e.preventDefault(); showLandingView(); });
+
+            // --- Background Animations ---
+            const landingCanvas = document.getElementById('interactive-bg');
+            const landingCtx = landingCanvas.getContext('2d');
+            let landingAnimationId;
+            let landingMoneyNotes = [];
+            const moneyColors = ['#aae0fa', '#f5f5a1', '#d8b8e8', '#f7c58d', '#f5b8b8'];
+            const mouse = { x: null, y: null, radius: 100 };
+
+            class LandingMoneyNote {
+                constructor(x, y, width, height, color, speed) { this.x = x; this.y = y; this.width = width; this.height = height; this.color = color; this.speed = speed; this.angle = Math.random() * 360; this.baseSpeed = speed; }
+                update() { let dx = this.x - mouse.x; let dy = this.y - mouse.y; let distance = Math.sqrt(dx * dx + dy * dy); if (distance < mouse.radius) { const forceDirectionX = dx / distance; const forceDirectionY = dy / distance; const force = (mouse.radius - distance) / mouse.radius; this.x += forceDirectionX * force * 2; this.y += forceDirectionY * force * 2; this.speed = this.baseSpeed * 1.5; } else { this.speed = this.baseSpeed; } this.y -= this.speed; this.angle += this.speed / 5; if (this.y < -this.height) { this.y = landingCanvas.height; this.x = Math.random() * landingCanvas.width; } }
+                draw() { landingCtx.save(); landingCtx.translate(this.x, this.y); landingCtx.rotate(this.angle * Math.PI / 180); landingCtx.fillStyle = this.color; landingCtx.globalAlpha = 0.7; landingCtx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height); landingCtx.fillStyle = 'rgba(0,0,0,0.5)'; landingCtx.font = `${this.height / 2}px 'Roboto Slab'`; landingCtx.textAlign = 'center'; landingCtx.textBaseline = 'middle'; landingCtx.fillText('£', 0, 0); landingCtx.restore(); }
+            }
+
+            function initLandingBackground() { landingCanvas.width = window.innerWidth; landingCanvas.height = window.innerHeight; landingMoneyNotes = []; for (let i = 0; i < 30; i++) { const width = 80; const height = 40; const x = Math.random() * landingCanvas.width; const y = Math.random() * landingCanvas.height; const color = moneyColors[Math.floor(Math.random() * moneyColors.length)]; const speed = Math.random() * 0.5 + 0.2; landingMoneyNotes.push(new LandingMoneyNote(x, y, width, height, color, speed)); } }
+            function animateLandingBackground() { landingCtx.clearRect(0, 0, landingCanvas.width, landingCanvas.height); landingMoneyNotes.forEach(note => { note.update(); note.draw(); }); landingAnimationId = requestAnimationFrame(animateLandingBackground); }
+            function startLandingBackgroundAnimation() { if (landingAnimationId) cancelAnimationFrame(landingAnimationId); initLandingBackground(); animateLandingBackground(); }
+            function stopLandingBackgroundAnimation() { if (landingAnimationId) cancelAnimationFrame(landingAnimationId); }
+            
+            const appCanvas = document.getElementById('app-bg');
+            const appCtx = appCanvas.getContext('2d');
+            let appAnimationId;
+            let appMoneyNotes = [];
+
+            class AppMoneyNote extends LandingMoneyNote {
+                update() { this.y -= this.speed; this.angle += this.speed / 10; if (this.y < -this.height) { this.y = appCanvas.height; this.x = Math.random() * appCanvas.width; } }
+                draw() { appCtx.save(); appCtx.translate(this.x, this.y); appCtx.rotate(this.angle * Math.PI / 180); appCtx.fillStyle = this.color; appCtx.globalAlpha = 0.15; appCtx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height); appCtx.restore(); }
+            }
+
+            function initAppBackground() { appCanvas.width = window.innerWidth; appCanvas.height = window.innerHeight; appMoneyNotes = []; for (let i = 0; i < 20; i++) { const width = 120; const height = 60; const x = Math.random() * appCanvas.width; const y = Math.random() * appCanvas.height; const color = moneyColors[Math.floor(Math.random() * moneyColors.length)]; const speed = Math.random() * 0.2 + 0.1; appMoneyNotes.push(new AppMoneyNote(x, y, width, height, color, speed)); } }
+            function animateAppBackground() { appCtx.clearRect(0, 0, appCanvas.width, appCanvas.height); appMoneyNotes.forEach(note => { note.update(); note.draw(); }); appAnimationId = requestAnimationFrame(animateAppBackground); }
+            function startAppBackgroundAnimation() { appCanvas.classList.remove('hidden'); if (appAnimationId) cancelAnimationFrame(appAnimationId); initAppBackground(); animateAppBackground(); }
+            function stopAppBackgroundAnimation() { appCanvas.classList.add('hidden'); if (appAnimationId) cancelAnimationFrame(appAnimationId); }
+
+            window.addEventListener('resize', () => { initLandingBackground(); initAppBackground(); });
+            window.addEventListener('mousemove', (e) => { mouse.x = e.x; mouse.y = e.y; });
+            startLandingBackgroundAnimation();
+
+            // --- Finance Tracker App Logic ---
             const rawConfig = typeof __firebase_config !== 'undefined' && __firebase_config ? __firebase_config : '{}';
             const firebaseConfig = JSON.parse(rawConfig);
-            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-allocator-app';
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-finance-app';
             
             let app, db, auth, userId;
-            try { app = initializeApp(firebaseConfig); db = getFirestore(app); auth = getAuth(app); } catch (e) { console.error("Firebase initialization failed:", e); }
+            try { app = initializeApp(firebaseConfig); db = getFirestore(app); auth = getAuth(app); } catch (e) { console.error("Firebase initialization failed:", e); document.body.innerHTML = "Error initializing application."; return; }
 
-            let allAllocatedFunds = [], allSources = [], allPurposes = [];
+            let allAllocatedFunds = []; let allSources = []; let allPurposes = [];
             const defaultSources = ['Overtime', 'Salary'];
-            const defaultPurposes = ['Rent', 'Groceries', 'Savings', 'Investment'];
-            let dailyTotals = {}; let currentDate = new Date();
-
-            const allocationForm = document.getElementById('allocation-form');
-            const sourceDropdown = document.getElementById('source');
-            const purposeDropdown = document.getElementById('purpose');
-            const timelineContainer = document.getElementById('timeline-container');
-            const manageCategoriesBtn = document.getElementById('manage-categories-btn');
-            const managementModal = document.getElementById('management-modal');
-            const sourcesManagementContainer = document.getElementById('sources-management-container');
-            const purposesManagementContainer = document.getElementById('purposes-management-container');
-            const closeManagementModalBtn = document.getElementById('close-management-modal');
-            const calendarBody = document.getElementById('calendar-body');
-            const monthYearEl = document.getElementById('month-year');
-            const allocatedMonthNameEl = document.getElementById('allocated-month-name');
+            const defaultPurposes = ['Rent', 'Income Tax', 'National Insurance', 'Car Insurance', 'Vanquis', 'Barclayscard', 'CapitalOne', 'NatWest', 'Outing', 'Emergency Savings', 'Investment'];
+            let dailyTotals = {}; let currentCardToDelete = null; let currentDate = new Date();
 
             onAuthStateChanged(auth, user => {
                 if (user) {
                     userId = user.uid;
                     listenForAllocations();
-                    listenForSources();
+                    listenForSources(); 
                     listenForPurposes();
                 } else {
                     signInAnonymously(auth).catch(error => console.error("Anonymous sign-in failed:", error));
                 }
             });
 
-            function listenForAllocations() {
-                if (!userId) return;
-                const q = query(collection(db, `artifacts/${appId}/users/${userId}/allocations`), orderBy("date", "desc"));
-                onSnapshot(q, (snapshot) => {
-                    allAllocatedFunds = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    updateUI();
-                });
-            }
-            
-            function updateUI() {
-                renderCalendar();
-                renderTimeline();
-            }
+            const allocatableCardsContainer = document.getElementById('allocatable-cards-container');
+            const allocatedFundsContainer = document.getElementById('allocated-funds-container');
+            const allocationModal = document.getElementById('allocation-modal');
+            const allocationForm = document.getElementById('allocation-form');
+            const detailsModal = document.getElementById('details-modal');
+            const detailsContent = document.getElementById('details-content');
+            const calendarBody = document.getElementById('calendar-body');
+            const monthYearEl = document.getElementById('month-year');
+            const allocatedMonthNameEl = document.getElementById('allocated-month-name');
+            const sourceDropdown = document.getElementById('source');
+            const purposeDropdown = document.getElementById('purpose');
+            const cardValues = [10, 20, 50, 100, 200, 500, 1000, 'Custom'];
+            const managementModal = document.getElementById('management-modal');
+            const sourcesManagementContainer = document.getElementById('sources-management-container');
+            const purposesManagementContainer = document.getElementById('purposes-management-container');
+            const closeManagementModalBtn = document.getElementById('close-management-modal');
 
-            function renderTimeline() {
-                timelineContainer.innerHTML = '';
-                const year = currentDate.getFullYear();
-                const month = currentDate.getMonth() + 1;
-                const monthString = String(month).padStart(2, '0');
-                const filteredFunds = allAllocatedFunds.filter(fund => fund.date.startsWith(`${year}-${monthString}`));
-
-                if (filteredFunds.length === 0) {
-                    timelineContainer.innerHTML = '<p class="text-gray-400">No allocations for this month.</p>';
-                    return;
+            function createCard(value, isAllocated = false, id = null, details = {}) {
+                const card = document.createElement('div');
+                const isCustom = value === 'Custom';
+                let cardColorClass;
+                if (isAllocated) {
+                    const amount = details.amount;
+                    if (amount <= 10) cardColorClass = 'card-10'; else if (amount <= 20) cardColorClass = 'card-20'; else if (amount <= 50) cardColorClass = 'card-50'; else if (amount <= 100) cardColorClass = 'card-100'; else if (amount <= 200) cardColorClass = 'card-200'; else if (amount <= 500) cardColorClass = 'card-500'; else if (amount <= 1000) cardColorClass = 'card-1000'; else cardColorClass = 'card-custom';
+                } else { cardColorClass = `card-${isCustom ? 'custom' : value}`; }
+                card.className = `monopoly-card ${cardColorClass} p-2 flex flex-col justify-center items-center`;
+                card.dataset.id = id;
+                if (isAllocated) {
+                    const formattedDate = new Date(details.date + 'T00:00:00').toLocaleDateString('en-GB');
+                    card.innerHTML = `<div class="font-bold text-lg leading-tight">£${details.amount.toFixed(2)}</div><div class="text-xs mt-1 text-gray-700">${formattedDate}</div>`;
+                    card.dataset.details = JSON.stringify(details);
+                    card.addEventListener('click', () => showDetailsModal(card));
+                } else {
+                    card.classList.add('draggable');
+                    card.textContent = isCustom ? 'Custom' : `£${value}`;
+                    card.dataset.value = value;
+                    card.draggable = true;
+                    card.addEventListener('dragstart', (e) => e.dataTransfer.setData('text/plain', e.target.dataset.value));
                 }
-                filteredFunds.forEach(fund => {
-                    const item = document.createElement('div');
-                    item.className = 'timeline-item relative';
-                    item.innerHTML = `
-                        <div class="p-4 bg-gray-800/50 rounded-lg shadow">
-                            <p class="text-sm text-gray-400">${new Date(fund.date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                            <h4 class="font-bold text-lg text-blue-400">£${parseFloat(fund.amount).toFixed(2)}</h4>
-                            <p class="text-gray-300">From <span class="font-semibold text-white">${fund.source}</span> for <span class="font-semibold text-white">${fund.purpose}</span></p>
-                        </div>
-                    `;
-                    timelineContainer.appendChild(item);
-                });
+                return card;
             }
 
-            function renderCalendar() {
-                calendarBody.innerHTML = '';
-                const year = currentDate.getFullYear(), month = currentDate.getMonth();
-                const monthName = currentDate.toLocaleString('default', { month: 'long' });
-                
-                monthYearEl.textContent = `${monthName} ${year}`;
-                allocatedMonthNameEl.textContent = monthName;
+            function populateAllocatableCards() { allocatableCardsContainer.innerHTML = ''; cardValues.forEach(value => allocatableCardsContainer.appendChild(createCard(value))); }
+            allocatedFundsContainer.addEventListener('dragover', e => { e.preventDefault(); allocatedFundsContainer.classList.add('bg-green-100'); });
+            allocatedFundsContainer.addEventListener('dragleave', () => allocatedFundsContainer.classList.remove('bg-green-100'));
+            allocatedFundsContainer.addEventListener('drop', e => { e.preventDefault(); allocatedFundsContainer.classList.remove('bg-green-100'); showAllocationModal(e.dataTransfer.getData('text/plain')); });
 
-                dailyTotals = {};
-                allAllocatedFunds.forEach(fund => {
-                    const date = new Date(fund.date + 'T00:00:00');
-                    if (date.getFullYear() === year && date.getMonth() === month) {
-                        const day = date.getDate();
-                        dailyTotals[day] = (dailyTotals[day] || 0) + parseFloat(fund.amount);
-                    }
-                });
-
-                const firstDayOfMonth = new Date(year, month, 1).getDay();
-                const daysInMonth = new Date(year, month + 1, 0).getDate();
-                for (let i = 0; i < firstDayOfMonth; i++) calendarBody.insertAdjacentHTML('beforeend', '<div class="calendar-day other-month"></div>');
-                for (let day = 1; day <= daysInMonth; day++) {
-                    const dayCell = document.createElement('div');
-                    dayCell.className = 'calendar-day';
-                    const today = new Date();
-                    if (day === today.getDate() && month === today.getMonth() && year === today.getFullYear()) dayCell.classList.add('today');
-                    const total = dailyTotals[day] || 0;
-                    dayCell.innerHTML = `<span class="day-number">${day}</span>${total > 0 ? `<span class="day-amount">£${total.toFixed(2)}</span>` : ''}`;
-                    calendarBody.appendChild(dayCell);
-                }
+            function showAllocationModal(value) {
+                allocationForm.reset();
+                const amountInput = document.getElementById('amount');
+                amountInput.classList.remove('border-red-500');
+                amountInput.value = (value !== 'Custom') ? value : '';
+                amountInput.readOnly = (value !== 'Custom');
+                document.getElementById('date').valueAsDate = new Date();
+                if(allSources.length > 0) sourceDropdown.value = 'Overtime';
+                if(allPurposes.length > 0) purposeDropdown.value = 'Rent';
+                allocationModal.classList.remove('hidden');
             }
-            
+
+            function hideAllocationModal() { allocationModal.classList.add('hidden'); }
+            function showDetailsModal(card) {
+                const details = JSON.parse(card.dataset.details);
+                currentCardToDelete = card.dataset.id;
+                detailsContent.innerHTML = `<p class="mb-2"><strong>Amount:</strong> £${details.amount.toFixed(2)}</p><p class="mb-2"><strong>Source:</strong> ${details.source}</p><p class="mb-2"><strong>Purpose:</strong> ${details.purpose}</p><p><strong>Date:</strong> ${new Date(details.date + 'T00:00:00').toLocaleDateString('en-GB')}</p>`;
+                detailsModal.classList.remove('hidden');
+            }
+            function hideDetailsModal() { detailsModal.classList.add('hidden'); currentCardToDelete = null; }
+
+            document.getElementById('cancel-allocation').addEventListener('click', hideAllocationModal);
+            document.getElementById('close-details').addEventListener('click', hideDetailsModal);
+            document.getElementById('prev-month').addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() - 1); renderCalendar(); });
+            document.getElementById('next-month').addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() + 1); renderCalendar(); });
+
             allocationForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
-                if (!userId) return;
-                const newAllocation = {
-                    amount: document.getElementById('amount').value,
-                    source: sourceDropdown.value,
-                    purpose: purposeDropdown.value,
-                    date: document.getElementById('date').value
-                };
+                if (!userId) return console.error("User not signed in.");
+                const amountInput = document.getElementById('amount');
+                const amountValue = parseFloat(amountInput.value);
+                amountInput.classList.remove('border-red-500');
+                if (isNaN(amountValue) || amountValue <= 0) {
+                    amountInput.classList.add('border-red-500', 'border-2');
+                    return amountInput.focus();
+                }
+                const newAllocation = { amount: amountValue, source: sourceDropdown.value, purpose: purposeDropdown.value, date: document.getElementById('date').value };
                 try {
                     await addDoc(collection(db, `artifacts/${appId}/users/${userId}/allocations`), newAllocation);
-                    allocationForm.reset();
-                    document.getElementById('date').valueAsDate = new Date();
+                    hideAllocationModal();
                 } catch (error) { console.error("Error adding document: ", error); }
             });
 
-            // --- Category Management ---
+            document.getElementById('delete-card').addEventListener('click', async () => {
+                if (currentCardToDelete && userId) {
+                    try {
+                        await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/allocations`, currentCardToDelete));
+                        hideDetailsModal();
+                    } catch (error) { console.error("Error removing document: ", error); }
+                }
+            });
+
+            // --- Category Management Logic ---
+            closeManagementModalBtn.addEventListener('click', () => managementModal.classList.add('hidden'));
             manageCategoriesBtn.addEventListener('click', () => {
                 populateCategoryManagementList('source');
                 populateCategoryManagementList('purpose');
                 managementModal.classList.remove('hidden');
             });
-            closeManagementModalBtn.addEventListener('click', () => managementModal.classList.add('hidden'));
+            
+            function refreshManagementModal() {
+                if (!managementModal.classList.contains('hidden')) {
+                    populateCategoryManagementList('source');
+                    populateCategoryManagementList('purpose');
+                }
+            }
 
             function populateCategoryManagementList(type) {
                 const container = type === 'source' ? sourcesManagementContainer : purposesManagementContainer;
                 const list = type === 'source' ? allSources : allPurposes;
                 const defaults = type === 'source' ? defaultSources : defaultPurposes;
                 
-                container.innerHTML = `<h4 class="text-lg font-semibold mb-2 text-gray-200">${type.charAt(0).toUpperCase() + type.slice(1)}s</h4><div class="space-y-2 max-h-64 overflow-y-auto border border-gray-600 p-2 rounded"></div><div class="mt-2 flex gap-2"><input type="text" placeholder="Add new..." class="new-category-input w-full p-2 bg-gray-900 border border-gray-600 rounded"><button class="add-category-btn px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 shrink-0">Add</button></div>`;
+                container.innerHTML = `<h4 class="text-lg font-semibold mb-2">${type.charAt(0).toUpperCase() + type.slice(1)}s</h4><div class="space-y-2 max-h-64 overflow-y-auto border p-2 rounded"></div><div class="mt-2 flex gap-2"><input type="text" placeholder="Add new..." class="new-category-input w-full p-2 border rounded"><button class="add-category-btn px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 shrink-0">Add</button></div>`;
                 const listContainer = container.querySelector('.space-y-2');
 
                 list.forEach(item => {
                     const isDefault = defaults.includes(item);
                     const itemDiv = document.createElement('div');
-                    itemDiv.className = 'flex items-center justify-between p-2 border border-gray-700 rounded bg-gray-800';
+                    itemDiv.className = 'flex items-center justify-between p-2 border rounded';
                     itemDiv.innerHTML = `
-                        <span class="item-name flex-grow text-gray-300">${item}</span>
-                        <div class="item-actions flex-shrink-0">
-                            ${isDefault ? '<span class="text-xs text-gray-500 mr-2">Default</span>' : `
-                            <button class="edit-btn p-1 text-blue-500 hover:text-blue-400" title="Edit ${item}">Edit</button>
-                            <button class="delete-btn p-1 text-red-500 hover:text-red-400" title="Delete ${item}">Delete</button>`}
+                        <span class="item-name">${item}</span>
+                        <div class="item-actions">
+                            ${isDefault ? '<span class="text-xs text-gray-400 mr-2">Default</span>' : `
+                            <button class="edit-btn text-blue-500 hover:text-blue-700 mr-2">Edit</button>
+                            <button class="delete-btn text-red-500 hover:text-red-700">Delete</button>`}
                         </div>
                     `;
                     listContainer.appendChild(itemDiv);
@@ -276,7 +394,9 @@
                     if (!isDefault) {
                         itemDiv.querySelector('.edit-btn').addEventListener('click', () => {
                             const newName = prompt(`Edit category name for "${item}":`, item);
-                            if (newName) editCategory(item, newName.trim(), type);
+                            if (newName) {
+                                editCategory(item, newName.trim(), type);
+                            }
                         });
                         itemDiv.querySelector('.delete-btn').addEventListener('click', () => deleteCategory(item, type));
                     }
@@ -307,11 +427,11 @@
                 const q = query(allocationsRef, where(type, "==", name));
                 const querySnapshot = await getDocs(q);
                 if (!querySnapshot.empty) {
-                    alert(`Cannot delete "${name}" because it is currently used by ${querySnapshot.size} allocation(s).`);
+                    alert(`Cannot delete "${name}" because it is currently used by ${querySnapshot.size} allocation(s). Please edit or delete those allocations first.`);
                     return;
                 }
 
-                if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
+                if (!confirm(`Are you sure you want to delete "${name}"? This cannot be undone.`)) return;
                 const docRef = doc(db, `artifacts/${appId}/users/${userId}/${type}s/custom`);
                 const defaults = type === 'source' ? defaultSources : defaultPurposes;
                 const currentList = (type === 'source' ? allSources : allPurposes).filter(item => !defaults.includes(item));
@@ -339,6 +459,7 @@
                 try { await batch.commit(); } catch (e) { console.error("Error updating category:", e); }
             }
 
+            // --- Dropdown Population ---
             function listenForSources() {
                 if (!userId) return;
                 const sourcesDocRef = doc(db, `artifacts/${appId}/users/${userId}/sources/custom`);
@@ -359,17 +480,44 @@
                 allPurposes.forEach(purpose => { const option = document.createElement('option'); option.value = purpose; option.textContent = purpose; purposeDropdown.appendChild(option); });
                 if (allPurposes.includes(selectedValue)) purposeDropdown.value = selectedValue;
             }
-            function refreshManagementModal() {
-                if (!managementModal.classList.contains('hidden')) {
-                    populateCategoryManagementList('source');
-                    populateCategoryManagementList('purpose');
-                }
-            }
-
-            document.getElementById('date').valueAsDate = new Date();
             
-            document.getElementById('prev-month').addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() - 1); updateUI(); });
-            document.getElementById('next-month').addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() + 1); updateUI(); });
+            // --- Data & Calendar Rendering ---
+            function listenForAllocations() {
+                if (!userId) return;
+                const q = collection(db, `artifacts/${appId}/users/${userId}/allocations`);
+                onSnapshot(q, (querySnapshot) => {
+                    const fundsFromDB = []; dailyTotals = {};
+                    querySnapshot.forEach((doc) => { const fund = { id: doc.id, ...doc.data() }; fundsFromDB.push(fund); dailyTotals[fund.date] = (dailyTotals[fund.date] || 0) + fund.amount; });
+                    allAllocatedFunds = fundsFromDB; renderCalendar();
+                }, (error) => console.error("Error listening to allocations:", error));
+            }
+            function renderAllocatedCardsForCurrentMonth() {
+                allocatedFundsContainer.innerHTML = '';
+                const year = currentDate.getFullYear(); const month = currentDate.getMonth() + 1;
+                const monthString = String(month).padStart(2, '0');
+                const filteredFunds = allAllocatedFunds.filter(fund => fund.date.startsWith(`${year}-${monthString}`));
+                filteredFunds.sort((a, b) => new Date(b.date) - new Date(a.date));
+                filteredFunds.forEach(fund => allocatedFundsContainer.appendChild(createCard(null, true, fund.id, fund)));
+            }
+            function renderCalendar() {
+                calendarBody.innerHTML = '';
+                const year = currentDate.getFullYear(), month = currentDate.getMonth();
+                const monthName = currentDate.toLocaleString('default', { month: 'long' });
+                monthYearEl.textContent = `${monthName} ${year}`; allocatedMonthNameEl.textContent = monthName;
+                const firstDayOfMonth = new Date(year, month, 1).getDay(); const daysInMonth = new Date(year, month + 1, 0).getDate();
+                for (let i = 0; i < firstDayOfMonth; i++) calendarBody.insertAdjacentHTML('beforeend', '<div class="calendar-day other-month"></div>');
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const dayCell = document.createElement('div'); dayCell.className = 'calendar-day';
+                    const today = new Date(); if (day === today.getDate() && month === today.getMonth() && year === today.getFullYear()) dayCell.classList.add('today');
+                    const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    const total = dailyTotals[dateKey] || 0;
+                    dayCell.innerHTML = `<span class="day-number">${day}</span>${total > 0 ? `<span class="day-amount">£${total.toFixed(2)}</span>` : ''}`;
+                    calendarBody.appendChild(dayCell);
+                }
+                renderAllocatedCardsForCurrentMonth();
+            }
+            
+            populateAllocatableCards();
         });
     </script>
 
