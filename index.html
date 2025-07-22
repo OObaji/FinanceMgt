@@ -6,7 +6,6 @@ import { ChevronDown, PlusCircle, Zap, TrendingUp, DollarSign, CreditCard, Shopp
 const initialIncomeSources = [
     { id: 1, name: 'Monthly Salary', amount: 3800, type: 'Primary' },
     { id: 2, name: 'Freelance Project', amount: 650, type: 'Side Hustle' },
-    { id: 3, name: 'Overtime Pay', amount: 400, type: 'Overtime' },
 ];
 
 const initialBudgets = [
@@ -26,14 +25,13 @@ const initialSubscriptions = [
     { id: 4, name: 'Gym Membership', amount: 39.99, billingCycle: 'Monthly', nextPayment: '2024-08-01' },
 ];
 
-const initialOvertimeAllocations = {
-    total: 400,
-    allocations: [
-        { id: 1, name: 'Car Insurance', allocated: 65 },
-        { id: 2, name: 'Credit Card Debt', allocated: 200 },
-        { id: 3, name: 'Vacation Fund', allocated: 135 },
-    ]
-};
+const initialOvertime = [
+    { id: 1, date: '2024-07-20', time: '18:00 - 22:00', amount: 120, allocation: 'Vacation Fund', status: 'Completed' },
+    { id: 2, date: '2024-07-21', time: '10:00 - 14:00', amount: 120, allocation: 'Credit Card Debt', status: 'Completed' },
+    { id: 3, date: '2024-07-22', time: '09:00 - 12:00', amount: 90, allocation: 'Car Insurance', status: 'Completed' },
+    { id: 4, date: '2024-07-28', time: '20:00 - 23:00', amount: 70, allocation: 'Vacation Fund', status: 'Not Started' },
+];
+
 
 // --- ICONS MAPPING ---
 const categoryIcons = {
@@ -73,7 +71,7 @@ export default function App() {
     const [incomeSources, setIncomeSources] = useState(initialIncomeSources);
     const [budgets, setBudgets] = useState(initialBudgets);
     const [subscriptions, setSubscriptions] = useState(initialSubscriptions);
-    const [overtime, setOvertime] = useState(initialOvertimeAllocations);
+    const [overtime, setOvertime] = useState(initialOvertime);
     const [isSidebarOpen, setSidebarOpen] = useState(false);
     const [theme, setTheme] = useState('dark');
 
@@ -218,7 +216,10 @@ const Header = ({ setSidebarOpen, theme, setTheme }) => (
 
 const Dashboard = ({ incomeSources, budgets, subscriptions, overtime, setPage }) => {
     const { totalIncome, totalBudgeted, totalSubscriptionCost, totalExpenses, balance } = useMemo(() => {
-        const income = incomeSources.reduce((sum, i) => sum + i.amount, 0);
+        const primaryIncome = incomeSources.reduce((sum, i) => sum + i.amount, 0);
+        const overtimeIncome = overtime.reduce((sum, o) => sum + o.amount, 0);
+        const income = primaryIncome + overtimeIncome;
+        
         const budgetedAmount = budgets.reduce((sum, b) => sum + b.amount, 0);
         const subscriptionCost = subscriptions.reduce((sum, s) => sum + s.amount, 0);
         const expenses = budgetedAmount + subscriptionCost;
@@ -229,13 +230,15 @@ const Dashboard = ({ incomeSources, budgets, subscriptions, overtime, setPage })
             totalExpenses: expenses,
             balance: income - expenses
         };
-    }, [incomeSources, budgets, subscriptions]);
+    }, [incomeSources, budgets, subscriptions, overtime]);
 
     const expenseComposition = [
         { name: 'Budget Items', value: totalBudgeted },
         { name: 'Subscriptions', value: totalSubscriptionCost },
     ];
     const COLORS = ['#4f46e5', '#818cf8'];
+    
+    const totalOvertime = overtime.reduce((sum, o) => sum + o.amount, 0);
 
     return (
         <div className="space-y-6">
@@ -272,11 +275,11 @@ const Dashboard = ({ incomeSources, budgets, subscriptions, overtime, setPage })
                 </div>
                 <div className="space-y-6">
                     <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
-                        <h3 className="font-semibold text-lg text-gray-800 dark:text-gray-200 mb-4">Overtime Allocation</h3>
-                        <p className="text-3xl font-bold text-gray-800 dark:text-gray-200">{formatCurrency(overtime.total)}</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Available to allocate</p>
+                        <h3 className="font-semibold text-lg text-gray-800 dark:text-gray-200 mb-4">Total Overtime Earned</h3>
+                        <p className="text-3xl font-bold text-gray-800 dark:text-gray-200">{formatCurrency(totalOvertime)}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">from {overtime.length} shifts</p>
                         <button onClick={() => setPage('overtime')} className="w-full flex items-center justify-center bg-blue-500 text-white px-4 py-2 rounded-lg shadow-md hover:bg-blue-600 transition-colors">
-                            Allocate Funds <ArrowRight className="w-4 h-4 ml-2" />
+                            Manage Overtime <ArrowRight className="w-4 h-4 ml-2" />
                         </button>
                     </div>
                      <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
@@ -380,7 +383,6 @@ const IncomePage = ({ incomeSources, setIncomeSources }) => {
                     <select name="type" value={editingIncome ? editingIncome.type : newItem.type} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                         <option>Primary</option>
                         <option>Side Hustle</option>
-                        <option>Overtime</option>
                         <option>Other</option>
                     </select>
                 </div>
@@ -767,99 +769,157 @@ const SubscriptionsPage = ({ subscriptions, setSubscriptions }) => {
 
 const OvertimePage = ({ overtime, setOvertime }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [newAllocation, setNewAllocation] = useState({ name: '', allocated: '' });
+    const [editingOvertime, setEditingOvertime] = useState(null);
+    const [deletingOvertime, setDeletingOvertime] = useState(null);
+    const [newItem, setNewItem] = useState({ date: '', time: '', amount: '', allocation: '', status: 'Not Started' });
 
-    const allocatedAmount = overtime.allocations.reduce((sum, a) => sum + a.allocated, 0);
-    const remainingAmount = overtime.total - allocatedAmount;
+    const totalOvertime = overtime.reduce((sum, o) => sum + o.amount, 0);
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
-        setNewAllocation({ ...newAllocation, [name]: value });
+        if (editingOvertime) {
+            setEditingOvertime({ ...editingOvertime, [name]: value });
+        } else {
+            setNewItem({ ...newItem, [name]: value });
+        }
+    };
+
+    const handleAddNew = () => {
+        setEditingOvertime(null);
+        setNewItem({ date: '', time: '', amount: '', allocation: '', status: 'Not Started' });
+        setIsModalOpen(true);
+    };
+
+    const handleEdit = (item) => {
+        setEditingOvertime(item);
+        setIsModalOpen(true);
+    };
+
+    const handleDelete = (item) => {
+        setDeletingOvertime(item);
+    };
+
+    const confirmDelete = () => {
+        setOvertime(overtime.filter(o => o.id !== deletingOvertime.id));
+        setDeletingOvertime(null);
     };
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        const allocatedValue = parseFloat(newAllocation.allocated);
-        if (!newAllocation.name || !allocatedValue || allocatedValue > remainingAmount) {
-            // Simple validation, could be improved with user feedback
-            alert('Invalid allocation name or amount exceeds remaining balance.');
-            return;
+        if (editingOvertime) {
+            if (!editingOvertime.date || !editingOvertime.amount) return;
+            setOvertime(overtime.map(o => o.id === editingOvertime.id ? { ...editingOvertime, amount: parseFloat(editingOvertime.amount) } : o));
+        } else {
+            if (!newItem.date || !newItem.amount) return;
+            setOvertime([...overtime, { ...newItem, id: Date.now(), amount: parseFloat(newItem.amount) }]);
         }
-        const updatedAllocations = [...overtime.allocations, { ...newAllocation, id: Date.now(), allocated: allocatedValue }];
-        setOvertime({ ...overtime, allocations: updatedAllocations });
         setIsModalOpen(false);
-        setNewAllocation({ name: '', allocated: '' });
+        setEditingOvertime(null);
     };
+    
+    const StatusBadge = ({ status }) => {
+        const statusStyles = {
+            'Completed': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+            'Not Started': 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
+        };
+        return (
+            <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${statusStyles[status] || 'bg-gray-100 text-gray-800'}`}>
+                {status}
+            </span>
+        );
+    };
+
+    const overtimeForm = (
+        <form onSubmit={handleSubmit}>
+            <div className="p-6 space-y-4">
+                <div>
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Date</label>
+                    <input type="date" name="date" value={editingOvertime ? editingOvertime.date : newItem.date} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required />
+                </div>
+                <div>
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Time</label>
+                    <input type="text" name="time" value={editingOvertime ? editingOvertime.time : newItem.time} onChange={handleInputChange} placeholder="e.g., 19:00 - 07:00" className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required />
+                </div>
+                <div>
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Amount (£)</label>
+                    <input type="number" step="0.01" name="amount" value={editingOvertime ? editingOvertime.amount : newItem.amount} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required />
+                </div>
+                <div>
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Allocation</label>
+                    <input type="text" name="allocation" value={editingOvertime ? editingOvertime.allocation : newItem.allocation} onChange={handleInputChange} placeholder="e.g., Car Insurance" className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required />
+                </div>
+                 <div>
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
+                    <select name="status" value={editingOvertime ? editingOvertime.status : newItem.status} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        <option>Not Started</option>
+                        <option>Completed</option>
+                    </select>
+                </div>
+            </div>
+            <div className="p-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 text-right rounded-b-xl">
+                <button type="submit" className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">{editingOvertime ? 'Save Changes' : 'Add Overtime'}</button>
+            </div>
+        </form>
+    );
 
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
-                <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-200">Overtime Allocation</h2>
-                <button onClick={() => setIsModalOpen(true)} className="flex items-center bg-blue-500 text-white px-4 py-2 rounded-lg shadow-md hover:bg-blue-600 transition-colors">
+                <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-200">Overtime Log</h2>
+                <button onClick={handleAddNew} className="flex items-center bg-blue-500 text-white px-4 py-2 rounded-lg shadow-md hover:bg-blue-600 transition-colors">
                     <PlusCircle className="w-5 h-5 mr-2" />
-                    New Allocation
+                    Add Overtime
                 </button>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                 <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
-                    <h3 className="font-semibold text-lg text-gray-800 dark:text-gray-200 mb-2">Summary</h3>
-                    <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
-                        <span className="text-gray-600 dark:text-gray-400">Total Overtime Pay</span>
-                        <span className="font-bold text-green-500">{formatCurrency(overtime.total)}</span>
-                    </div>
-                    <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
-                        <span className="text-gray-600 dark:text-gray-400">Total Allocated</span>
-                        <span className="font-bold text-red-500">{formatCurrency(allocatedAmount)}</span>
-                    </div>
-                    <div className="flex justify-between items-center pt-2">
-                        <span className="text-gray-600 dark:text-gray-400">Remaining</span>
-                        <span className="font-bold text-blue-500">{formatCurrency(remainingAmount)}</span>
-                    </div>
-                </div>
-                <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
-                     <h3 className="font-semibold text-lg text-gray-800 dark:text-gray-200 mb-4">Allocation Progress</h3>
-                     <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-4 mb-4 flex overflow-hidden">
-                        {overtime.allocations.map((alloc, index) => {
-                            const percentage = (alloc.allocated / overtime.total) * 100;
-                            const colors = ['bg-indigo-500', 'bg-purple-500', 'bg-pink-500', 'bg-teal-500'];
-                            return <div key={alloc.id} className={`${colors[index % colors.length]}`} style={{ width: `${percentage}%` }}></div>
-                        })}
-                    </div>
-                    <div className="space-y-2">
-                        {overtime.allocations.map((alloc, index) => {
-                            const colors = ['text-indigo-500', 'text-purple-500', 'text-pink-500', 'text-teal-500'];
-                             return (
-                                <div key={alloc.id} className="flex items-center justify-between text-sm">
-                                    <span className="flex items-center">
-                                        <span className={`w-2 h-2 rounded-full mr-2 ${colors[index % colors.length].replace('text-', 'bg-')}`}></span>
-                                        {alloc.name}
-                                    </span>
-                                    <span className="font-medium text-gray-700 dark:text-gray-300">{formatCurrency(alloc.allocated)}</span>
-                                </div>
-                             )
-                        })}
-                    </div>
+            <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-md">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                        <thead className="border-b border-gray-200 dark:border-gray-700">
+                            <tr>
+                                <th className="p-3 text-sm font-semibold text-gray-500 dark:text-gray-400">Date</th>
+                                <th className="p-3 text-sm font-semibold text-gray-500 dark:text-gray-400">Time</th>
+                                <th className="p-3 text-sm font-semibold text-gray-500 dark:text-gray-400">Allocation</th>
+                                <th className="p-3 text-sm font-semibold text-gray-500 dark:text-gray-400">Status</th>
+                                <th className="p-3 text-sm font-semibold text-gray-500 dark:text-gray-400 text-right">Amount</th>
+                                <th className="p-3 text-sm font-semibold text-gray-500 dark:text-gray-400 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {overtime.map(item => (
+                                <tr key={item.id} className="border-b border-gray-200 dark:border-gray-700 last:border-0">
+                                    <td className="p-3 font-medium text-gray-800 dark:text-gray-200">{item.date}</td>
+                                    <td className="p-3 text-gray-600 dark:text-gray-300">{item.time}</td>
+                                    <td className="p-3 text-gray-600 dark:text-gray-300">{item.allocation}</td>
+                                    <td className="p-3"><StatusBadge status={item.status} /></td>
+                                    <td className="p-3 text-right font-semibold text-green-500">{formatCurrency(item.amount)}</td>
+                                    <td className="p-3 text-right">
+                                        <div className="flex justify-end items-center space-x-2">
+                                            <button onClick={() => handleEdit(item)} className="p-2 text-gray-500 hover:text-blue-500 dark:hover:text-blue-400 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"><Pencil className="w-4 h-4" /></button>
+                                            <button onClick={() => handleDelete(item)} className="p-2 text-gray-500 hover:text-red-500 dark:hover:text-red-400 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                        <tfoot className="border-t-2 border-gray-200 dark:border-gray-700">
+                            <tr>
+                                <td colSpan="5" className="p-3 font-bold text-gray-800 dark:text-gray-200">Total Overtime Earned</td>
+                                <td className="p-3 text-right font-bold text-lg text-green-500">{formatCurrency(totalOvertime)}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
                 </div>
             </div>
-            {isModalOpen && (
-                 <Modal onClose={() => setIsModalOpen(false)} title="New Overtime Allocation">
-                    <form onSubmit={handleSubmit}>
-                        <div className="p-6 space-y-4">
-                            <div>
-                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Allocation Goal</label>
-                                <input type="text" name="name" value={newAllocation.name} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="e.g., Vacation Fund" required />
-                            </div>
-                            <div>
-                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Amount to Allocate (£)</label>
-                                <input type="number" name="allocated" value={newAllocation.allocated} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" max={remainingAmount} required />
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{formatCurrency(remainingAmount)} remaining</p>
-                            </div>
-                        </div>
-                        <div className="p-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 text-right rounded-b-xl">
-                            <button type="submit" className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">Allocate</button>
-                        </div>
-                    </form>
+            {isModalOpen && <Modal onClose={() => setIsModalOpen(false)} title={editingOvertime ? 'Edit Overtime' : 'Add New Overtime'}>{overtimeForm}</Modal>}
+            {deletingOvertime && (
+                <Modal onClose={() => setDeletingOvertime(null)} title="Confirm Deletion">
+                    <div className="p-6">
+                        <p className="text-gray-700 dark:text-gray-300">Are you sure you want to delete this overtime entry? This action cannot be undone.</p>
+                    </div>
+                    <div className="p-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 flex justify-end space-x-2 rounded-b-xl">
+                        <button onClick={() => setDeletingOvertime(null)} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors">Cancel</button>
+                        <button onClick={confirmDelete} className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">Delete</button>
+                    </div>
                 </Modal>
             )}
         </div>
