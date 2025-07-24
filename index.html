@@ -322,10 +322,10 @@ document.addEventListener('DOMContentLoaded', () => {
             rowRenderer: item => `
                 <tr class="border-b border-gray-200 dark:border-gray-700 last:border-0">
                     <td class="p-3 font-medium text-gray-800 dark:text-gray-200">${item.name}</td>
-                    <td class="p-3"><span class="inline-flex items-center text-xs font-medium">${getIcon(categoryIcons[item.category] || 'book-open', 'w-4 h-4 mr-2')} ${item.category}</span></td>
-                    <td class="p-3 text-sm">${item.dueDate}</td>
+                    <td class="p-3 text-gray-600 dark:text-gray-300"><span class="inline-flex items-center text-xs font-medium">${getIcon(categoryIcons[item.category] || 'book-open', 'w-4 h-4 mr-2')} ${item.category}</span></td>
+                    <td class="p-3 text-sm text-gray-600 dark:text-gray-300">${item.dueDate}</td>
                     <td class="p-3">${statusBadge(item.status)}</td>
-                    <td class="p-3 text-right font-semibold">${formatCurrency(item.amount)}</td>
+                    <td class="p-3 text-right font-semibold text-gray-700 dark:text-gray-200">${formatCurrency(item.amount)}</td>
                     <td class="p-3 text-right"><div class="flex justify-end items-center space-x-2">
                         <button data-action="edit" data-id="${item.id}" class="p-2 text-gray-500 hover:text-blue-500 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">${getIcon('pencil', 'w-4 h-4')}</button>
                         <button data-action="delete" data-id="${item.id}" class="p-2 text-gray-500 hover:text-red-500 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">${getIcon('trash-2', 'w-4 h-4')}</button>
@@ -344,9 +344,9 @@ document.addEventListener('DOMContentLoaded', () => {
             rowRenderer: sub => `
                 <tr class="border-b border-gray-200 dark:border-gray-700 last:border-0">
                     <td class="p-3 font-medium text-gray-800 dark:text-gray-200">${sub.name}</td>
-                    <td class="p-3 text-sm">${sub.billingCycle}</td>
-                    <td class="p-3 text-sm">${sub.nextPayment}</td>
-                    <td class="p-3 text-right font-semibold">${formatCurrency(sub.amount)}</td>
+                    <td class="p-3 text-sm text-gray-600 dark:text-gray-300">${sub.billingCycle}</td>
+                    <td class="p-3 text-sm text-gray-600 dark:text-gray-300">${sub.nextPayment}</td>
+                    <td class="p-3 text-right font-semibold text-gray-700 dark:text-gray-200">${formatCurrency(sub.amount)}</td>
                     <td class="p-3 text-right"><div class="flex justify-end items-center space-x-2">
                         <button data-action="edit" data-id="${sub.id}" class="p-2 text-gray-500 hover:text-blue-500 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">${getIcon('pencil', 'w-4 h-4')}</button>
                         <button data-action="delete" data-id="${sub.id}" class="p-2 text-gray-500 hover:text-red-500 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">${getIcon('trash-2', 'w-4 h-4')}</button>
@@ -365,8 +365,8 @@ document.addEventListener('DOMContentLoaded', () => {
             rowRenderer: item => `
                 <tr class="border-b border-gray-200 dark:border-gray-700 last:border-0">
                     <td class="p-3 font-medium text-gray-800 dark:text-gray-200">${item.date}</td>
-                    <td class="p-3 text-sm">${item.time}</td>
-                    <td class="p-3 text-sm">${item.allocation}</td>
+                    <td class="p-3 text-sm text-gray-600 dark:text-gray-300">${item.time}</td>
+                    <td class="p-3 text-sm text-gray-600 dark:text-gray-300">${item.allocation}</td>
                     <td class="p-3">${statusBadge(item.status)}</td>
                     <td class="p-3 text-right font-semibold text-green-500">${formatCurrency(item.amount)}</td>
                     <td class="p-3 text-right"><div class="flex justify-end items-center space-x-2">
