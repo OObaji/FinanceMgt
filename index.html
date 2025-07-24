@@ -176,10 +176,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- MODAL MANAGEMENT ---
     function openModal(title, content) {
         modalContainer.innerHTML = `
-            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full transform transition-all" onclick="event.stopPropagation()">
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full transform transition-all">
                 <div class="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
                     <h3 class="text-xl font-bold text-gray-800 dark:text-gray-200">${title}</h3>
-                    <button class="close-modal-btn p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">${getIcon('x')}</button>
+                    <button data-action="close-modal" class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">${getIcon('x')}</button>
                 </div>
                 ${content}
             </div>`;
@@ -400,20 +400,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('theme-toggle').addEventListener('click', handleThemeToggle);
     document.getElementById('landing-theme-toggle').addEventListener('click', handleThemeToggle);
 
-    // Page Navigation
-    document.body.addEventListener('click', (e) => {
-        const navItem = e.target.closest('.nav-item');
-        if (navItem && navItem.dataset.page) {
-            e.preventDefault();
-            state.activePage = navItem.dataset.page;
-            saveState();
-            renderPage();
-            if (window.innerWidth < 1024) {
-                document.getElementById('sidebar').classList.add('-translate-x-full');
-            }
-        }
-    });
-    
     // Sidebar Toggle
     document.getElementById('open-sidebar-btn').addEventListener('click', () => document.getElementById('sidebar').classList.remove('-translate-x-full'));
     document.getElementById('close-sidebar-btn').addEventListener('click', () => document.getElementById('sidebar').classList.add('-translate-x-full'));
@@ -432,60 +418,72 @@ document.addEventListener('DOMContentLoaded', () => {
         window.location.reload();
     });
     
-    // Modal Close
-    modalContainer.addEventListener('click', e => {
-        if (e.target === modalContainer || e.target.closest('.close-modal-btn')) {
-            closeModal();
-        }
-    });
-
-    // --- MAIN EVENT DELEGATION FOR CRUD ---
-    mainContent.addEventListener('click', e => {
-        const button = e.target.closest('button[data-action]');
-        if (!button) return;
-
-        const action = button.dataset.action;
-        const id = button.dataset.id ? parseInt(button.dataset.id, 10) : null;
+    // --- UNIFIED CLICK HANDLER FOR THE ENTIRE DOCUMENT ---
+    document.body.addEventListener('click', e => {
+        const target = e.target;
         
-        const pageConfig = {
-            income: { title: 'Income Source', stateKey: 'incomeSources', form: getIncomeForm },
-            budget: { title: 'Budget Item', stateKey: 'budgets', form: getBudgetForm },
-            subscriptions: { title: 'Subscription', stateKey: 'subscriptions', form: getSubscriptionForm },
-            overtime: { title: 'Overtime Entry', stateKey: 'overtime', form: getOvertimeForm },
-        }[state.activePage];
-
-        if (!pageConfig) return;
-
-        if (action === 'add') {
-            openModal(`Add New ${pageConfig.title}`, pageConfig.form());
-        } else if (action === 'edit') {
-            const item = state[pageConfig.stateKey].find(i => i.id === id);
-            openModal(`Edit ${pageConfig.title}`, pageConfig.form(item));
-        } else if (action === 'delete') {
-            const item = state[pageConfig.stateKey].find(i => i.id === id);
-            openModal(`Confirm Deletion`, `
-                <div class="p-6">
-                    <p class="text-gray-700 dark:text-gray-300">Are you sure you want to delete "${item.name || item.allocation}"? This action cannot be undone.</p>
-                </div>
-                <div class="p-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 flex justify-end space-x-2 rounded-b-xl">
-                    <button class="close-modal-btn px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500">Cancel</button>
-                    <button data-action="confirm-delete" data-id="${id}" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">Delete</button>
-                </div>`);
+        // Page Navigation
+        const navItem = target.closest('.nav-item');
+        if (navItem && navItem.dataset.page) {
+            e.preventDefault();
+            state.activePage = navItem.dataset.page;
+            saveState();
+            renderPage();
+            if (window.innerWidth < 1024) {
+                document.getElementById('sidebar').classList.add('-translate-x-full');
+            }
+            return;
         }
-    });
 
-    modalContainer.addEventListener('click', e => {
-        const button = e.target.closest('button[data-action="confirm-delete"]');
-        if (!button) return;
-        const id = parseInt(button.dataset.id, 10);
-        const stateKey = {
-            income: 'incomeSources', budget: 'budgets', subscriptions: 'subscriptions', overtime: 'overtime'
-        }[state.activePage];
-        
-        state[stateKey] = state[stateKey].filter(item => item.id !== id);
-        saveState();
-        closeModal();
-        renderPage();
+        // Modal Actions (Opening)
+        const actionButton = target.closest('button[data-action]');
+        if (actionButton && mainContent.contains(actionButton)) {
+            const action = actionButton.dataset.action;
+            const id = actionButton.dataset.id ? parseInt(actionButton.dataset.id, 10) : null;
+            const pageConfig = {
+                income: { title: 'Income Source', stateKey: 'incomeSources', form: getIncomeForm },
+                budget: { title: 'Budget Item', stateKey: 'budgets', form: getBudgetForm },
+                subscriptions: { title: 'Subscription', stateKey: 'subscriptions', form: getSubscriptionForm },
+                overtime: { title: 'Overtime Entry', stateKey: 'overtime', form: getOvertimeForm },
+            }[state.activePage];
+
+            if (!pageConfig) return;
+
+            if (action === 'add') {
+                openModal(`Add New ${pageConfig.title}`, pageConfig.form());
+            } else if (action === 'edit') {
+                const item = state[pageConfig.stateKey].find(i => i.id === id);
+                openModal(`Edit ${pageConfig.title}`, pageConfig.form(item));
+            } else if (action === 'delete') {
+                const item = state[pageConfig.stateKey].find(i => i.id === id);
+                openModal(`Confirm Deletion`, `
+                    <div class="p-6"><p class="text-gray-700 dark:text-gray-300">Are you sure you want to delete "${item.name || item.allocation}"?</p></div>
+                    <div class="p-4 bg-gray-50 dark:bg-gray-800/50 border-t flex justify-end space-x-2">
+                        <button data-action="close-modal" class="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Cancel</button>
+                        <button data-action="confirm-delete" data-id="${id}" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">Delete</button>
+                    </div>`);
+            }
+            return;
+        }
+
+        // Modal Actions (Closing and Confirming)
+        if (modalContainer.contains(target)) {
+            if (target.closest('button[data-action="close-modal"]')) {
+                closeModal();
+            }
+            const confirmDeleteButton = target.closest('button[data-action="confirm-delete"]');
+            if (confirmDeleteButton) {
+                const id = parseInt(confirmDeleteButton.dataset.id, 10);
+                const stateKey = {
+                    income: 'incomeSources', budget: 'budgets', subscriptions: 'subscriptions', overtime: 'overtime'
+                }[state.activePage];
+                
+                state[stateKey] = state[stateKey].filter(item => item.id !== id);
+                saveState();
+                closeModal();
+                renderPage();
+            }
+        }
     });
 
     modalContainer.addEventListener('submit', e => {
