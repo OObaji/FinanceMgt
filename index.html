@@ -107,7 +107,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     // --- STATE MANAGEMENT (DATA) ---
-    let state = {
+    const initialState = {
         incomeSources: [
             { id: 1, name: 'Monthly Salary', amount: 3800, type: 'Primary' },
             { id: 2, name: 'Freelance Project', amount: 650, type: 'Side Hustle' },
@@ -127,6 +127,18 @@ document.addEventListener('DOMContentLoaded', () => {
         ],
         activePage: 'dashboard',
     };
+
+    // --- LOCAL STORAGE FUNCTIONS ---
+    function saveState() {
+        localStorage.setItem('financeMgtState', JSON.stringify(state));
+    }
+
+    function loadState() {
+        const savedState = localStorage.getItem('financeMgtState');
+        return savedState ? JSON.parse(savedState) : null;
+    }
+
+    let state = loadState() || initialState;
 
     // --- UTILITY FUNCTIONS ---
     const formatCurrency = (amount) => new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(amount);
@@ -394,6 +406,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (navItem && navItem.dataset.page) {
             e.preventDefault();
             state.activePage = navItem.dataset.page;
+            saveState();
             renderPage();
             if (window.innerWidth < 1024) {
                 document.getElementById('sidebar').classList.add('-translate-x-full');
@@ -410,13 +423,13 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('landing-page').classList.add('hidden');
         document.getElementById('app-container').classList.remove('hidden');
         document.getElementById('app-container').classList.add('flex');
+        saveState(); // Save initial state on first entry
         renderPage();
     });
     document.getElementById('logout-btn').addEventListener('click', (e) => {
         e.preventDefault();
-        document.getElementById('landing-page').classList.remove('hidden');
-        document.getElementById('app-container').classList.add('hidden');
-        document.getElementById('app-container').classList.remove('flex');
+        localStorage.removeItem('financeMgtState');
+        window.location.reload();
     });
     
     // Modal Close
@@ -470,6 +483,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }[state.activePage];
         
         state[stateKey] = state[stateKey].filter(item => item.id !== id);
+        saveState();
         closeModal();
         renderPage();
     });
@@ -493,6 +507,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else { // Adding
             state[stateKey].push(newItem);
         }
+        saveState();
         closeModal();
         renderPage();
     });
@@ -554,6 +569,22 @@ document.addEventListener('DOMContentLoaded', () => {
             </form>`;
     }
 
+    // --- INITIAL APP LOAD ---
+    function init() {
+        if (loadState()) {
+            document.getElementById('landing-page').classList.add('hidden');
+            document.getElementById('app-container').classList.remove('hidden');
+            document.getElementById('app-container').classList.add('flex');
+            renderPage();
+        } else {
+            document.getElementById('landing-page').classList.remove('hidden');
+            document.getElementById('app-container').classList.add('hidden');
+            document.getElementById('app-container').classList.remove('flex');
+            lucide.createIcons();
+        }
+    }
+
+    init();
 });
 </script>
 
