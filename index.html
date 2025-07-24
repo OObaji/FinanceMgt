@@ -177,7 +177,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- MODAL MANAGEMENT ---
     function openModal(title, content) {
         modalContainer.innerHTML = `
-            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full transform transition-all">
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full transform transition-all" onclick="event.stopPropagation()">
                 <div class="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
                     <h3 class="text-xl font-bold text-gray-800 dark:text-gray-200">${title}</h3>
                     <button data-action="close-modal" class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">${getIcon('x')}</button>
@@ -399,8 +399,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md space-y-4">
                         <div>
-                            <label for="gross-salary" class="text-sm font-medium text-gray-700 dark:text-gray-300">Gross Annual Salary (£)</label>
-                            <input type="number" id="gross-salary" value="35000" class="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md dark:text-gray-200">
+                            <label for="gross-salary" class="text-sm font-medium text-gray-700 dark:text-gray-300">Gross Salary (£)</label>
+                            <div class="flex mt-1">
+                                <input type="number" id="gross-salary" value="35000" class="flex-grow w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-l-md dark:text-gray-200">
+                                <select id="salary-period" class="px-3 py-2 bg-gray-50 dark:bg-gray-600 border-t border-r border-b border-gray-300 dark:border-gray-600 rounded-r-md dark:text-gray-200">
+                                    <option>Annually</option>
+                                    <option>Monthly</option>
+                                </select>
+                            </div>
                         </div>
                         <div>
                             <label for="tax-code" class="text-sm font-medium text-gray-700 dark:text-gray-300">Tax Code</label>
@@ -420,19 +426,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- SALARY CALCULATION LOGIC ---
     function calculateAndRenderSalary() {
-        const salary = parseFloat(document.getElementById('gross-salary').value) || 0;
+        const salaryInput = parseFloat(document.getElementById('gross-salary').value) || 0;
+        const period = document.getElementById('salary-period').value;
         const taxCode = document.getElementById('tax-code').value || '1257L';
         
-        // 1. Calculate Personal Allowance
+        const annualSalary = period === 'Monthly' ? salaryInput * 12 : salaryInput;
+
         let personalAllowance = (parseInt(taxCode.match(/\d+/)) || 0) * 10;
-        if (salary > 100000) {
-            personalAllowance -= Math.floor((salary - 100000) / 2);
+        if (annualSalary > 100000) {
+            personalAllowance -= Math.floor((annualSalary - 100000) / 2);
             personalAllowance = Math.max(0, personalAllowance);
         }
         
-        const taxableIncome = Math.max(0, salary - personalAllowance);
+        const taxableIncome = Math.max(0, annualSalary - personalAllowance);
 
-        // 2. Calculate Income Tax (England/NI rates 24/25)
         let tax = 0;
         if (taxableIncome > 0) {
             if (taxableIncome <= 37700) {
@@ -444,37 +451,41 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // 3. Calculate National Insurance (Class 1 rates 24/25)
         let ni = 0;
-        if (salary > 12570) {
-            if (salary <= 50270) {
-                ni = (salary - 12570) * 0.08;
+        if (annualSalary > 12570) {
+            if (annualSalary <= 50270) {
+                ni = (annualSalary - 12570) * 0.08;
             } else {
-                ni = ((50270 - 12570) * 0.08) + ((salary - 50270) * 0.02);
+                ni = ((50270 - 12570) * 0.08) + ((annualSalary - 50270) * 0.02);
             }
         }
 
         const totalDeductions = tax + ni;
-        const netPay = salary - totalDeductions;
+        const netPay = annualSalary - totalDeductions;
 
         const resultsContainer = document.getElementById('salary-results');
         resultsContainer.innerHTML = `
             <h3 class="text-lg font-bold text-gray-800 dark:text-gray-200 pb-2 border-b dark:border-gray-700">Results Breakdown</h3>
-            <div class="text-center py-4">
+            <div class="text-center py-4 border-b dark:border-gray-700">
                 <p class="text-sm text-gray-500 dark:text-gray-400">Annual Take-Home Pay</p>
                 <p class="text-3xl font-bold text-green-500">${formatCurrency(netPay)}</p>
             </div>
-            <div class="grid grid-cols-3 text-center text-sm py-2 border-y dark:border-gray-700">
-                <div><p class="font-bold text-gray-800 dark:text-gray-200">${formatCurrency(netPay / 12)}</p><p class="text-xs text-gray-500 dark:text-gray-400">Monthly</p></div>
-                <div><p class="font-bold text-gray-800 dark:text-gray-200">${formatCurrency(netPay / 52)}</p><p class="text-xs text-gray-500 dark:text-gray-400">Weekly</p></div>
-                <div><p class="font-bold text-gray-800 dark:text-gray-200">${formatCurrency(totalDeductions)}</p><p class="text-xs text-gray-500 dark:text-gray-400">Deductions</p></div>
+             <div class="text-center py-4">
+                <p class="text-sm text-gray-500 dark:text-gray-400">Monthly Take-Home Pay</p>
+                <p class="text-2xl font-bold text-green-500">${formatCurrency(netPay / 12)}</p>
             </div>
-            <div class="text-xs space-y-1 pt-2 text-gray-600 dark:text-gray-400">
-                <div class="flex justify-between"><span>Gross Pay:</span> <span class="font-mono">${formatCurrency(salary)}</span></div>
+            <div class="text-xs space-y-1 pt-4 mt-4 border-t dark:border-gray-700 text-gray-600 dark:text-gray-400">
+                 <h4 class="font-bold text-sm mb-2 text-gray-800 dark:text-gray-200">Annual Breakdown</h4>
+                <div class="flex justify-between"><span>Gross Pay:</span> <span class="font-mono">${formatCurrency(annualSalary)}</span></div>
                 <div class="flex justify-between"><span>Personal Allowance:</span> <span class="font-mono">${formatCurrency(personalAllowance)}</span></div>
                 <div class="flex justify-between"><span>Taxable Income:</span> <span class="font-mono">${formatCurrency(taxableIncome)}</span></div>
                 <div class="flex justify-between"><span>Income Tax:</span> <span class="font-mono">-${formatCurrency(tax)}</span></div>
                 <div class="flex justify-between"><span>National Insurance:</span> <span class="font-mono">-${formatCurrency(ni)}</span></div>
+                <h4 class="font-bold text-sm pt-4 mb-2 text-gray-800 dark:text-gray-200">Monthly Breakdown</h4>
+                <div class="flex justify-between"><span>Gross Monthly:</span> <span class="font-mono">${formatCurrency(annualSalary / 12)}</span></div>
+                <div class="flex justify-between"><span>Income Tax:</span> <span class="font-mono">-${formatCurrency(tax / 12)}</span></div>
+                <div class="flex justify-between"><span>National Insurance:</span> <span class="font-mono">-${formatCurrency(ni / 12)}</span></div>
+                <div class="flex justify-between font-bold text-gray-800 dark:text-gray-200"><span>Take-Home:</span> <span class="font-mono">${formatCurrency(netPay / 12)}</span></div>
             </div>
         `;
     }
@@ -493,46 +504,40 @@ document.addEventListener('DOMContentLoaded', () => {
     // Sidebar Toggle
     document.getElementById('open-sidebar-btn').addEventListener('click', () => document.getElementById('sidebar').classList.remove('-translate-x-full'));
     document.getElementById('close-sidebar-btn').addEventListener('click', () => document.getElementById('sidebar').classList.add('-translate-x-full'));
-
-    // App Entry / Exit
-    document.getElementById('enter-dashboard-btn').addEventListener('click', () => {
-        document.getElementById('landing-page').classList.add('hidden');
-        document.getElementById('app-container').classList.remove('hidden');
-        document.getElementById('app-container').classList.add('flex');
-        saveState(); // Save initial state on first entry
-        renderPage();
-    });
-    document.getElementById('logout-btn').addEventListener('click', (e) => {
-        e.preventDefault();
-        localStorage.removeItem('financeMgtState');
-        window.location.reload();
-    });
     
     // --- UNIFIED CLICK HANDLER FOR THE ENTIRE DOCUMENT ---
     document.body.addEventListener('click', e => {
         const target = e.target;
         const button = target.closest('button');
+        const navItem = target.closest('.nav-item');
 
         // Page Navigation
-        const navItem = target.closest('.nav-item');
-        if (navItem && navItem.dataset.page) {
+        if (navItem) {
             e.preventDefault();
-            state.activePage = navItem.dataset.page;
-            saveState();
-            renderPage();
-            if (window.innerWidth < 1024) {
-                document.getElementById('sidebar').classList.add('-translate-x-full');
+            if (navItem.id === 'logout-btn') {
+                localStorage.removeItem('financeMgtState');
+                window.location.reload();
+            } else if (navItem.dataset.page) {
+                state.activePage = navItem.dataset.page;
+                saveState();
+                renderPage();
+                if (window.innerWidth < 1024) {
+                    document.getElementById('sidebar').classList.add('-translate-x-full');
+                }
             }
+            return;
+        }
+        
+        if (target.closest('#enter-dashboard-btn')) {
+            document.getElementById('landing-page').classList.add('hidden');
+            document.getElementById('app-container').classList.remove('hidden');
+            document.getElementById('app-container').classList.add('flex');
+            saveState(); // Save initial state on first entry
+            renderPage();
             return;
         }
 
         if (!button) return; // Exit if the click was not on a button
-
-        // Modal Actions
-        if (button.dataset.action === 'close-modal' || (modalContainer.contains(button) && button.classList.contains('close-modal-btn'))) {
-            closeModal();
-            return;
-        }
 
         // Salary Calculator
         if (button.id === 'calculate-salary-btn') {
@@ -540,9 +545,16 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // CRUD Actions
         const action = button.dataset.action;
         const id = button.dataset.id ? parseInt(button.dataset.id, 10) : null;
+        
+        // Modal Actions
+        if (action === 'close-modal') {
+            closeModal();
+            return;
+        }
+
+        // CRUD Actions
         const pageConfig = {
             income: { title: 'Income Source', stateKey: 'incomeSources', form: getIncomeForm },
             budget: { title: 'Budget Item', stateKey: 'budgets', form: getBudgetForm },
@@ -564,9 +576,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     <button data-action="confirm-delete" data-id="${id}" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">Delete</button>
                 </div>`);
         } else if (action === 'confirm-delete') {
-            const stateKey = Object.keys(pageConfig).find(key => state[key]?.find(item => item.id === id));
-            if (stateKey) {
-                state[stateKey] = state[stateKey].filter(item => item.id !== id);
+            if (pageConfig) { // Ensure we are on a valid CRUD page
+                state[pageConfig.stateKey] = state[pageConfig.stateKey].filter(item => item.id !== id);
                 saveState();
                 closeModal();
                 renderPage();
