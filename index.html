@@ -154,6 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
         { id: 'budget', label: 'Budgets', icon: 'shopping-cart' },
         { id: 'subscriptions', label: 'Subscriptions', icon: 'repeat' },
         { id: 'overtime', label: 'Overtime', icon: 'clock' },
+        { id: 'calculator', label: 'Salary Calculator', icon: 'calculator' },
     ];
     const statusBadge = (status) => {
         const styles = {
@@ -209,6 +210,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'budget': renderBudgetPage,
             'subscriptions': renderSubscriptionsPage,
             'overtime': renderOvertimePage,
+            'calculator': renderSalaryCalculatorPage,
         };
         if (pageRenderers[state.activePage]) {
             pageRenderers[state.activePage]();
@@ -390,6 +392,94 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function renderSalaryCalculatorPage() {
+        mainContent.innerHTML = `
+            <div class="space-y-6">
+                <h2 class="text-3xl font-bold text-gray-800 dark:text-gray-200">Salary Calculator (UK)</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md space-y-4">
+                        <div>
+                            <label for="gross-salary" class="text-sm font-medium text-gray-700 dark:text-gray-300">Gross Annual Salary (£)</label>
+                            <input type="number" id="gross-salary" value="35000" class="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md dark:text-gray-200">
+                        </div>
+                        <div>
+                            <label for="tax-code" class="text-sm font-medium text-gray-700 dark:text-gray-300">Tax Code</label>
+                            <input type="text" id="tax-code" value="1257L" class="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md dark:text-gray-200">
+                        </div>
+                        <button id="calculate-salary-btn" class="w-full flex items-center justify-center bg-blue-500 text-white px-4 py-2 rounded-lg shadow-md hover:bg-blue-600 transition-colors">
+                            ${getIcon('calculator', 'w-5 h-5 mr-2')} Calculate
+                        </button>
+                    </div>
+                    <div id="salary-results" class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md space-y-2">
+                        <!-- Results will be rendered here -->
+                    </div>
+                </div>
+            </div>`;
+        calculateAndRenderSalary(); // Initial calculation
+    }
+
+    // --- SALARY CALCULATION LOGIC ---
+    function calculateAndRenderSalary() {
+        const salary = parseFloat(document.getElementById('gross-salary').value) || 0;
+        const taxCode = document.getElementById('tax-code').value || '1257L';
+        
+        // 1. Calculate Personal Allowance
+        let personalAllowance = (parseInt(taxCode.match(/\d+/)) || 0) * 10;
+        if (salary > 100000) {
+            personalAllowance -= Math.floor((salary - 100000) / 2);
+            personalAllowance = Math.max(0, personalAllowance);
+        }
+        
+        const taxableIncome = Math.max(0, salary - personalAllowance);
+
+        // 2. Calculate Income Tax (England/NI rates 24/25)
+        let tax = 0;
+        if (taxableIncome > 0) {
+            if (taxableIncome <= 37700) {
+                tax = taxableIncome * 0.20;
+            } else if (taxableIncome <= 125140) {
+                tax = (37700 * 0.20) + ((taxableIncome - 37700) * 0.40);
+            } else {
+                tax = (37700 * 0.20) + ((125140 - 37700) * 0.40) + ((taxableIncome - 125140) * 0.45);
+            }
+        }
+
+        // 3. Calculate National Insurance (Class 1 rates 24/25)
+        let ni = 0;
+        if (salary > 12570) {
+            if (salary <= 50270) {
+                ni = (salary - 12570) * 0.08;
+            } else {
+                ni = ((50270 - 12570) * 0.08) + ((salary - 50270) * 0.02);
+            }
+        }
+
+        const totalDeductions = tax + ni;
+        const netPay = salary - totalDeductions;
+
+        const resultsContainer = document.getElementById('salary-results');
+        resultsContainer.innerHTML = `
+            <h3 class="text-lg font-bold text-gray-800 dark:text-gray-200 pb-2 border-b dark:border-gray-700">Results Breakdown</h3>
+            <div class="text-center py-4">
+                <p class="text-sm text-gray-500 dark:text-gray-400">Annual Take-Home Pay</p>
+                <p class="text-3xl font-bold text-green-500">${formatCurrency(netPay)}</p>
+            </div>
+            <div class="grid grid-cols-3 text-center text-sm py-2 border-y dark:border-gray-700">
+                <div><p class="font-bold text-gray-800 dark:text-gray-200">${formatCurrency(netPay / 12)}</p><p class="text-xs text-gray-500 dark:text-gray-400">Monthly</p></div>
+                <div><p class="font-bold text-gray-800 dark:text-gray-200">${formatCurrency(netPay / 52)}</p><p class="text-xs text-gray-500 dark:text-gray-400">Weekly</p></div>
+                <div><p class="font-bold text-gray-800 dark:text-gray-200">${formatCurrency(totalDeductions)}</p><p class="text-xs text-gray-500 dark:text-gray-400">Deductions</p></div>
+            </div>
+            <div class="text-xs space-y-1 pt-2 text-gray-600 dark:text-gray-400">
+                <div class="flex justify-between"><span>Gross Pay:</span> <span class="font-mono">${formatCurrency(salary)}</span></div>
+                <div class="flex justify-between"><span>Personal Allowance:</span> <span class="font-mono">${formatCurrency(personalAllowance)}</span></div>
+                <div class="flex justify-between"><span>Taxable Income:</span> <span class="font-mono">${formatCurrency(taxableIncome)}</span></div>
+                <div class="flex justify-between"><span>Income Tax:</span> <span class="font-mono">-${formatCurrency(tax)}</span></div>
+                <div class="flex justify-between"><span>National Insurance:</span> <span class="font-mono">-${formatCurrency(ni)}</span></div>
+            </div>
+        `;
+    }
+
+
     // --- EVENT LISTENERS ---
     
     // Theme Toggling
@@ -421,7 +511,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- UNIFIED CLICK HANDLER FOR THE ENTIRE DOCUMENT ---
     document.body.addEventListener('click', e => {
         const target = e.target;
-        
+        const button = target.closest('button');
+
         // Page Navigation
         const navItem = target.closest('.nav-item');
         if (navItem && navItem.dataset.page) {
@@ -435,49 +526,46 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Modal Actions (Opening)
-        const actionButton = target.closest('button[data-action]');
-        if (actionButton && mainContent.contains(actionButton)) {
-            const action = actionButton.dataset.action;
-            const id = actionButton.dataset.id ? parseInt(actionButton.dataset.id, 10) : null;
-            const pageConfig = {
-                income: { title: 'Income Source', stateKey: 'incomeSources', form: getIncomeForm },
-                budget: { title: 'Budget Item', stateKey: 'budgets', form: getBudgetForm },
-                subscriptions: { title: 'Subscription', stateKey: 'subscriptions', form: getSubscriptionForm },
-                overtime: { title: 'Overtime Entry', stateKey: 'overtime', form: getOvertimeForm },
-            }[state.activePage];
+        if (!button) return; // Exit if the click was not on a button
 
-            if (!pageConfig) return;
-
-            if (action === 'add') {
-                openModal(`Add New ${pageConfig.title}`, pageConfig.form());
-            } else if (action === 'edit') {
-                const item = state[pageConfig.stateKey].find(i => i.id === id);
-                openModal(`Edit ${pageConfig.title}`, pageConfig.form(item));
-            } else if (action === 'delete') {
-                const item = state[pageConfig.stateKey].find(i => i.id === id);
-                openModal(`Confirm Deletion`, `
-                    <div class="p-6"><p class="text-gray-700 dark:text-gray-300">Are you sure you want to delete "${item.name || item.allocation}"?</p></div>
-                    <div class="p-4 bg-gray-50 dark:bg-gray-800/50 border-t flex justify-end space-x-2">
-                        <button data-action="close-modal" class="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Cancel</button>
-                        <button data-action="confirm-delete" data-id="${id}" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">Delete</button>
-                    </div>`);
-            }
+        // Modal Actions
+        if (button.dataset.action === 'close-modal' || (modalContainer.contains(button) && button.classList.contains('close-modal-btn'))) {
+            closeModal();
             return;
         }
 
-        // Modal Actions (Closing and Confirming)
-        if (modalContainer.contains(target)) {
-            if (target.closest('button[data-action="close-modal"]')) {
-                closeModal();
-            }
-            const confirmDeleteButton = target.closest('button[data-action="confirm-delete"]');
-            if (confirmDeleteButton) {
-                const id = parseInt(confirmDeleteButton.dataset.id, 10);
-                const stateKey = {
-                    income: 'incomeSources', budget: 'budgets', subscriptions: 'subscriptions', overtime: 'overtime'
-                }[state.activePage];
-                
+        // Salary Calculator
+        if (button.id === 'calculate-salary-btn') {
+            calculateAndRenderSalary();
+            return;
+        }
+
+        // CRUD Actions
+        const action = button.dataset.action;
+        const id = button.dataset.id ? parseInt(button.dataset.id, 10) : null;
+        const pageConfig = {
+            income: { title: 'Income Source', stateKey: 'incomeSources', form: getIncomeForm },
+            budget: { title: 'Budget Item', stateKey: 'budgets', form: getBudgetForm },
+            subscriptions: { title: 'Subscription', stateKey: 'subscriptions', form: getSubscriptionForm },
+            overtime: { title: 'Overtime Entry', stateKey: 'overtime', form: getOvertimeForm },
+        }[state.activePage];
+
+        if (action === 'add' && pageConfig) {
+            openModal(`Add New ${pageConfig.title}`, pageConfig.form());
+        } else if (action === 'edit' && pageConfig) {
+            const item = state[pageConfig.stateKey].find(i => i.id === id);
+            openModal(`Edit ${pageConfig.title}`, pageConfig.form(item));
+        } else if (action === 'delete' && pageConfig) {
+            const item = state[pageConfig.stateKey].find(i => i.id === id);
+            openModal(`Confirm Deletion`, `
+                <div class="p-6"><p class="text-gray-700 dark:text-gray-300">Are you sure you want to delete "${item.name || item.allocation}"?</p></div>
+                <div class="p-4 bg-gray-50 dark:bg-gray-800/50 border-t flex justify-end space-x-2">
+                    <button data-action="close-modal" class="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Cancel</button>
+                    <button data-action="confirm-delete" data-id="${id}" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">Delete</button>
+                </div>`);
+        } else if (action === 'confirm-delete') {
+            const stateKey = Object.keys(pageConfig).find(key => state[key]?.find(item => item.id === id));
+            if (stateKey) {
                 state[stateKey] = state[stateKey].filter(item => item.id !== id);
                 saveState();
                 closeModal();
