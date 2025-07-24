@@ -1,927 +1,365 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, Sector } from 'recharts';
-import { ChevronDown, PlusCircle, Zap, TrendingUp, DollarSign, CreditCard, ShoppingCart, Home, Utensils, Car, Film, Heart, BookOpen, Repeat, Settings, LogOut, Menu, X, Sun, Moon, Clock, ArrowRight, Pencil, Trash2 } from 'lucide-react';
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinanceMGT</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js for Dashboard Charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
 
-// --- MOCK DATA ---
-const initialIncomeSources = [
-    { id: 1, name: 'Monthly Salary', amount: 3800, type: 'Primary' },
-    { id: 2, name: 'Freelance Project', amount: 650, type: 'Side Hustle' },
-];
-
-const initialBudgets = [
-    { id: 1, name: 'Rent', category: 'Housing', amount: 1450, dueDate: '2024-08-01', status: 'Paid' },
-    { id: 2, name: 'Council Tax', category: 'Housing', amount: 180, dueDate: '2024-08-05', status: 'Paid' },
-    { id: 3, name: 'Groceries', category: 'Groceries', amount: 400, dueDate: 'N/A', status: 'Ongoing' },
-    { id: 4, name: 'Electricity Bill', category: 'Utilities', amount: 95, dueDate: '2024-08-20', status: 'Upcoming' },
-    { id: 5, name: 'Gas Bill', category: 'Utilities', amount: 70, dueDate: '2024-08-22', status: 'Upcoming' },
-    { id: 6, name: 'Oyster Card Top-up', category: 'Transport', amount: 120, dueDate: 'N/A', status: 'Ongoing' },
-    { id: 7, name: 'Car Insurance', category: 'Transport', amount: 65, dueDate: '2024-07-28', status: 'Overdue' },
-];
-
-const initialSubscriptions = [
-    { id: 1, name: 'Netflix', amount: 13.99, billingCycle: 'Monthly', nextPayment: '2024-08-15' },
-    { id: 2, name: 'Spotify', amount: 10.99, billingCycle: 'Monthly', nextPayment: '2024-08-11' },
-    { id: 3, name: 'Amazon Prime', amount: 8.99, billingCycle: 'Monthly', nextPayment: '2024-08-08' },
-    { id: 4, name: 'Gym Membership', amount: 39.99, billingCycle: 'Monthly', nextPayment: '2024-08-01' },
-];
-
-const initialOvertime = [
-    { id: 1, date: '2024-07-20', time: '18:00 - 22:00', amount: 120, allocation: 'Vacation Fund', status: 'Completed' },
-    { id: 2, date: '2024-07-21', time: '10:00 - 14:00', amount: 120, allocation: 'Credit Card Debt', status: 'Completed' },
-    { id: 3, date: '2024-07-22', time: '09:00 - 12:00', amount: 90, allocation: 'Car Insurance', status: 'Completed' },
-    { id: 4, date: '2024-07-28', time: '20:00 - 23:00', amount: 70, allocation: 'Vacation Fund', status: 'Not Started' },
-];
-
-
-// --- ICONS MAPPING ---
-const categoryIcons = {
-    'Groceries': <ShoppingCart className="w-5 h-5" />,
-    'Utilities': <Zap className="w-5 h-5" />,
-    'Transport': <Car className="w-5 h-5" />,
-    'Housing': <Home className="w-5 h-5" />,
-    'Entertainment': <Film className="w-5 h-5" />,
-    'Health': <Heart className="w-5 h-5" />,
-    'Subscriptions': <Repeat className="w-5 h-5" />,
-    'Income': <DollarSign className="w-5 h-5" />,
-    'Personal Care': <Heart className="w-5 h-5" />,
-    'Debt': <CreditCard className="w-5 h-5" />,
-    'Savings': <TrendingUp className="w-5 h-5" />,
-    'Other': <BookOpen className="w-5 h-5" />,
-};
-
-// --- HELPER FUNCTIONS ---
-const formatCurrency = (amount) => new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(amount);
-
-// --- THEME TOGGLE ---
-const ThemeToggle = ({ theme, setTheme }) => {
-    return (
-        <button
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className="p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-        >
-            {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-        </button>
-    );
-};
-
-
-// --- MAIN APP COMPONENT ---
-export default function App() {
-    const [page, setPage] = useState('landing');
-    const [incomeSources, setIncomeSources] = useState(initialIncomeSources);
-    const [budgets, setBudgets] = useState(initialBudgets);
-    const [subscriptions, setSubscriptions] = useState(initialSubscriptions);
-    const [overtime, setOvertime] = useState(initialOvertime);
-    const [isSidebarOpen, setSidebarOpen] = useState(false);
-    const [theme, setTheme] = useState('dark');
-
-    useEffect(() => {
-        if (theme === 'dark') {
-            document.documentElement.classList.add('dark');
-        } else {
-            document.documentElement.classList.remove('dark');
+    <style>
+        /* Custom scrollbar for a cleaner look */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1f2937; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+        .hidden { display: none; }
+    </style>
+    <script>
+        // Configuration for Tailwind CSS dark mode
+        tailwind.config = {
+            darkMode: 'class',
         }
-    }, [theme]);
+    </script>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 font-sans">
 
-    if (page === 'landing') {
-        return <LandingPage setPage={setPage} theme={theme} setTheme={setTheme} />;
-    }
-
-    return (
-        <div className={`flex h-screen bg-gray-100 dark:bg-gray-900 font-sans ${theme}`}>
-            <Sidebar page={page} setPage={setPage} isSidebarOpen={isSidebarOpen} setSidebarOpen={setSidebarOpen} />
-            <div className="flex-1 flex flex-col overflow-hidden">
-                <Header setSidebarOpen={setSidebarOpen} theme={theme} setTheme={setTheme} />
-                <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 dark:bg-gray-900 p-4 sm:p-6 lg:p-8">
-                    {page === 'dashboard' && <Dashboard incomeSources={incomeSources} budgets={budgets} subscriptions={subscriptions} overtime={overtime} setPage={setPage} />}
-                    {page === 'income' && <IncomePage incomeSources={incomeSources} setIncomeSources={setIncomeSources} />}
-                    {page === 'budget' && <BudgetPage budgets={budgets} setBudgets={setBudgets} />}
-                    {page === 'subscriptions' && <SubscriptionsPage subscriptions={subscriptions} setSubscriptions={setSubscriptions} />}
-                    {page === 'overtime' && <OvertimePage overtime={overtime} setOvertime={setOvertime} />}
-                </main>
-            </div>
-        </div>
-    );
-}
-
-// --- REUSABLE MODAL COMPONENT ---
-const Modal = ({ children, onClose, title }) => {
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4 transition-opacity" onClick={onClose}>
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full transform transition-all" onClick={e => e.stopPropagation()}>
-                <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-                    <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200">{title}</h3>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
-                        <X className="w-6 h-6" />
-                    </button>
-                </div>
-                {children}
-            </div>
-        </div>
-    );
-};
-
-// --- LAYOUT COMPONENTS ---
-const LandingPage = ({ setPage, theme, setTheme }) => {
-    return (
-        <div className={`min-h-screen flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 p-4 transition-colors duration-500 ${theme}`}>
-             <div className="absolute top-4 right-4">
-                <ThemeToggle theme={theme} setTheme={setTheme} />
-            </div>
-            <div className="text-center z-10">
-                <h1 className="text-5xl md:text-7xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-teal-400 mb-4">
-                    FinanceFlow AI
-                </h1>
-                <p className="text-lg md:text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto mb-8">
-                    Your intelligent financial co-pilot. Track income, manage budgets, and allocate funds with precision.
-                </p>
-                <button
-                    onClick={() => setPage('dashboard')}
-                    className="bg-gradient-to-r from-blue-500 to-teal-400 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 ease-in-out"
-                >
-                    Enter Dashboard
+    <!-- App Container -->
+    <div id="app-container" class="hidden h-screen">
+        <!-- Sidebar -->
+        <aside id="sidebar" class="absolute lg:relative z-30 w-64 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 h-full shadow-xl transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col">
+            <div class="p-6 flex items-center justify-between">
+                <h1 class="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-teal-400">FinanceMGT</h1>
+                <button id="close-sidebar-btn" class="lg:hidden text-gray-500 dark:text-gray-400">
+                    <i data-lucide="x"></i>
                 </button>
             </div>
-            <div className="absolute inset-0 bg-grid-gray-200/40 dark:bg-grid-gray-700/30 [mask-image:linear-gradient(to_bottom,white_20%,transparent_70%)] -z-1"></div>
-        </div>
-    );
-};
+            <nav id="nav-menu" class="flex-1 px-4">
+                <!-- Nav items will be dynamically inserted here -->
+            </nav>
+            <div class="p-4 border-t border-gray-200 dark:border-gray-700">
+                <a href="#" class="nav-item flex items-center px-4 py-3 my-1 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700">
+                    <i data-lucide="settings"></i><span class="ml-4 font-medium">Settings</span>
+                </a>
+                <a href="#" id="logout-btn" class="nav-item flex items-center px-4 py-3 my-1 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700">
+                    <i data-lucide="log-out"></i><span class="ml-4 font-medium">Log Out</span>
+                </a>
+            </div>
+        </aside>
 
-const Sidebar = ({ page, setPage, isSidebarOpen, setSidebarOpen }) => {
-    const navItems = [
-        { id: 'dashboard', label: 'Dashboard', icon: <TrendingUp /> },
-        { id: 'income', label: 'Income', icon: <DollarSign /> },
-        { id: 'budget', label: 'Budgets', icon: <ShoppingCart /> },
-        { id: 'subscriptions', label: 'Subscriptions', icon: <Repeat /> },
-        { id: 'overtime', label: 'Overtime', icon: <Clock /> },
-    ];
-
-    return (
-        <>
-            <div className={`fixed inset-0 z-20 bg-black bg-opacity-50 transition-opacity lg:hidden ${isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setSidebarOpen(false)}></div>
-            <aside className={`absolute lg:relative z-30 w-64 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 h-full shadow-xl transform transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 flex flex-col`}>
-                <div className="p-6 flex items-center justify-between">
-                    <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-teal-400">FinanceFlow</h1>
-                    <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-gray-500 dark:text-gray-400">
-                        <X className="w-6 h-6" />
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <header class="flex items-center justify-between p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                <button id="open-sidebar-btn" class="lg:hidden text-gray-600 dark:text-gray-300">
+                    <i data-lucide="menu"></i>
+                </button>
+                <div class="flex-1"></div>
+                <div class="flex items-center space-x-4">
+                    <button id="theme-toggle" class="p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                        <i data-lucide="sun" class="block dark:hidden"></i>
+                        <i data-lucide="moon" class="hidden dark:block"></i>
                     </button>
                 </div>
-                <nav className="flex-1 px-4">
-                    {navItems.map(item => (
-                        <NavItem
-                            key={item.id}
-                            label={item.label}
-                            icon={item.icon}
-                            isActive={page === item.id}
-                            onClick={() => { setPage(item.id); setSidebarOpen(false); }}
-                        />
-                    ))}
-                </nav>
-                <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-                    <NavItem label="Settings" icon={<Settings />} onClick={() => {}} />
-                    <NavItem label="Log Out" icon={<LogOut />} onClick={() => setPage('landing')} />
-                </div>
-            </aside>
-        </>
-    );
-};
-
-const NavItem = ({ label, icon, isActive, onClick }) => (
-    <a
-        href="#"
-        onClick={onClick}
-        className={`flex items-center px-4 py-3 my-1 rounded-lg transition-colors duration-200 ${isActive
-            ? 'bg-blue-500 text-white shadow-md'
-            : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
-            }`}
-    >
-        <div className="w-6 h-6">{icon}</div>
-        <span className="ml-4 font-medium">{label}</span>
-    </a>
-);
-
-const Header = ({ setSidebarOpen, theme, setTheme }) => (
-    <header className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        <button onClick={() => setSidebarOpen(true)} className="lg:hidden text-gray-600 dark:text-gray-300">
-            <Menu className="w-6 h-6" />
-        </button>
-        <div className="flex-1"></div>
-        <div className="flex items-center space-x-4">
-            <ThemeToggle theme={theme} setTheme={setTheme} />
+            </header>
+            <main id="main-content" class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 dark:bg-gray-900 p-4 sm:p-6 lg:p-8">
+                <!-- Page content will be dynamically inserted here -->
+            </main>
         </div>
-    </header>
-);
+    </div>
 
-// --- PAGE COMPONENTS ---
+    <!-- Landing Page -->
+    <div id="landing-page" class="min-h-screen flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 p-4 transition-colors duration-500">
+        <div class="absolute top-4 right-4">
+            <button id="landing-theme-toggle" class="p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                <i data-lucide="sun" class="block dark:hidden"></i>
+                <i data-lucide="moon" class="hidden dark:block"></i>
+            </button>
+        </div>
+        <div class="text-center z-10">
+            <h1 class="text-5xl md:text-7xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-teal-400 mb-4">
+                FinanceMGT
+            </h1>
+            <p class="text-lg md:text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto mb-8">
+                Your intelligent financial co-pilot. Track income, manage budgets, and allocate funds with precision.
+            </p>
+            <button id="enter-dashboard-btn" class="bg-gradient-to-r from-blue-500 to-teal-400 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 ease-in-out">
+                Enter Dashboard
+            </button>
+        </div>
+        <div class="absolute inset-0 bg-[radial-gradient(circle_500px_at_50%_200px,#3b82f622,transparent)] -z-1"></div>
+    </div>
 
-const Dashboard = ({ incomeSources, budgets, subscriptions, overtime, setPage }) => {
-    const { totalIncome, totalBudgeted, totalSubscriptionCost, totalExpenses, balance } = useMemo(() => {
-        const primaryIncome = incomeSources.reduce((sum, i) => sum + i.amount, 0);
-        const overtimeIncome = overtime.reduce((sum, o) => sum + o.amount, 0);
-        const income = primaryIncome + overtimeIncome;
-        
-        const budgetedAmount = budgets.reduce((sum, b) => sum + b.amount, 0);
-        const subscriptionCost = subscriptions.reduce((sum, s) => sum + s.amount, 0);
-        const expenses = budgetedAmount + subscriptionCost;
-        return {
-            totalIncome: income,
-            totalBudgeted: budgetedAmount,
-            totalSubscriptionCost: subscriptionCost,
-            totalExpenses: expenses,
-            balance: income - expenses
-        };
-    }, [incomeSources, budgets, subscriptions, overtime]);
+    <!-- Modal Container -->
+    <div id="modal-container" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4 transition-opacity">
+        <!-- Modal content will be dynamically inserted here -->
+    </div>
 
-    const expenseComposition = [
-        { name: 'Budget Items', value: totalBudgeted },
-        { name: 'Subscriptions', value: totalSubscriptionCost },
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // --- STATE MANAGEMENT (DATA) ---
+    let state = {
+        incomeSources: [
+            { id: 1, name: 'Monthly Salary', amount: 3800, type: 'Primary' },
+            { id: 2, name: 'Freelance Project', amount: 650, type: 'Side Hustle' },
+        ],
+        budgets: [
+            { id: 1, name: 'Rent', category: 'Housing', amount: 1450, dueDate: '2024-08-01', status: 'Paid' },
+            { id: 2, name: 'Council Tax', category: 'Housing', amount: 180, dueDate: '2024-08-05', status: 'Paid' },
+            { id: 3, name: 'Groceries', category: 'Groceries', amount: 400, dueDate: 'N/A', status: 'Ongoing' },
+        ],
+        subscriptions: [
+            { id: 1, name: 'Netflix', amount: 13.99, billingCycle: 'Monthly', nextPayment: '2024-08-15' },
+            { id: 2, name: 'Spotify', amount: 10.99, billingCycle: 'Monthly', nextPayment: '2024-08-11' },
+        ],
+        overtime: [
+            { id: 1, date: '2024-07-20', time: '18:00 - 22:00', amount: 120, allocation: 'Vacation Fund', status: 'Completed' },
+            { id: 2, date: '2024-07-28', time: '20:00 - 23:00', amount: 70, allocation: 'Vacation Fund', status: 'Not Started' },
+        ],
+        activePage: 'dashboard',
+    };
+
+    // --- UTILITY FUNCTIONS ---
+    const formatCurrency = (amount) => new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(amount);
+    const getIcon = (name, classes = "w-5 h-5") => `<i data-lucide="${name}" class="${classes}"></i>`;
+    const categoryIcons = {
+        'Groceries': 'shopping-cart', 'Utilities': 'zap', 'Transport': 'car', 'Housing': 'home',
+        'Entertainment': 'film', 'Health': 'heart', 'Subscriptions': 'repeat', 'Income': 'dollar-sign',
+        'Personal Care': 'heart', 'Debt': 'credit-card', 'Savings': 'trending-up', 'Other': 'book-open',
+    };
+
+    // --- TEMPLATES (HTML GENERATORS) ---
+    const mainContent = document.getElementById('main-content');
+    const modalContainer = document.getElementById('modal-container');
+    const navMenu = document.getElementById('nav-menu');
+
+    const navItems = [
+        { id: 'dashboard', label: 'Dashboard', icon: 'trending-up' },
+        { id: 'income', label: 'Income', icon: 'dollar-sign' },
+        { id: 'budget', label: 'Budgets', icon: 'shopping-cart' },
+        { id: 'subscriptions', label: 'Subscriptions', icon: 'repeat' },
+        { id: 'overtime', label: 'Overtime', icon: 'clock' },
     ];
-    const COLORS = ['#4f46e5', '#818cf8'];
+
+    // --- RENDER FUNCTIONS ---
+    function renderNav() {
+        navMenu.innerHTML = navItems.map(item => `
+            <a href="#" data-page="${item.id}" class="nav-item flex items-center px-4 py-3 my-1 rounded-lg transition-colors duration-200 ${state.activePage === item.id ? 'bg-blue-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}">
+                ${getIcon(item.icon)}
+                <span class="ml-4 font-medium">${item.label}</span>
+            </a>
+        `).join('');
+    }
+
+    function renderPage() {
+        switch (state.activePage) {
+            case 'dashboard': renderDashboard(); break;
+            case 'income': renderIncomePage(); break;
+            case 'budget': renderBudgetPage(); break;
+            case 'subscriptions': renderSubscriptionsPage(); break;
+            case 'overtime': renderOvertimePage(); break;
+        }
+        lucide.createIcons();
+        renderNav();
+    }
     
-    const totalOvertime = overtime.reduce((sum, o) => sum + o.amount, 0);
+    // --- RENDER DASHBOARD ---
+    function renderDashboard() {
+        const primaryIncome = state.incomeSources.reduce((sum, i) => sum + i.amount, 0);
+        const overtimeIncome = state.overtime.reduce((sum, o) => sum + o.amount, 0);
+        const totalIncome = primaryIncome + overtimeIncome;
+        const totalBudgeted = state.budgets.reduce((sum, b) => sum + b.amount, 0);
+        const totalSubscriptionCost = state.subscriptions.reduce((sum, s) => sum + s.amount, 0);
+        const totalExpenses = totalBudgeted + totalSubscriptionCost;
+        const balance = totalIncome - totalExpenses;
 
-    return (
-        <div className="space-y-6">
-            <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-200">Dashboard</h2>
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <StatCard title="Net Balance" value={formatCurrency(balance)} icon={<DollarSign />} color="blue" />
-                <StatCard title="Total Income" value={formatCurrency(totalIncome)} icon={<TrendingUp />} color="green" />
-                <StatCard title="Total Expenses" value={formatCurrency(totalExpenses)} icon={<TrendingUp className="transform rotate-180" />} color="red" />
-            </div>
-
-            {/* Charts and Quick Actions */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
-                    <h3 className="font-semibold text-lg text-gray-800 dark:text-gray-200 mb-4">Expense Composition</h3>
-                    <div style={{ width: '100%', height: 300 }}>
-                        <ResponsiveContainer>
-                            <PieChart>
-                                <Pie data={expenseComposition} cx="50%" cy="50%" labelLine={false} outerRadius={110} fill="#8884d8" dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
-                                    {expenseComposition.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                    ))}
-                                </Pie>
-                                <Tooltip formatter={(value) => formatCurrency(value)} contentStyle={{
-                                    backgroundColor: 'rgba(31, 41, 55, 0.8)',
-                                    borderColor: 'rgba(255, 255, 255, 0.2)',
-                                    borderRadius: '0.5rem',
-                                    color: '#fff'
-                                }} />
-                                <Legend />
-                            </PieChart>
-                        </ResponsiveContainer>
+        mainContent.innerHTML = `
+            <div class="space-y-6">
+                <h2 class="text-3xl font-bold text-gray-800 dark:text-gray-200">Dashboard</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="bg-gradient-to-br from-blue-500 to-indigo-600 text-white p-6 rounded-xl shadow-lg">
+                        <div class="flex justify-between items-start"><div><p class="text-sm font-medium opacity-80">Net Balance</p><p class="text-3xl font-bold">${formatCurrency(balance)}</p></div><div class="p-3 bg-white/20 rounded-lg">${getIcon('dollar-sign', 'w-6 h-6')}</div></div>
+                    </div>
+                    <div class="bg-gradient-to-br from-green-500 to-emerald-600 text-white p-6 rounded-xl shadow-lg">
+                        <div class="flex justify-between items-start"><div><p class="text-sm font-medium opacity-80">Total Income</p><p class="text-3xl font-bold">${formatCurrency(totalIncome)}</p></div><div class="p-3 bg-white/20 rounded-lg">${getIcon('trending-up', 'w-6 h-6')}</div></div>
+                    </div>
+                    <div class="bg-gradient-to-br from-red-500 to-rose-600 text-white p-6 rounded-xl shadow-lg">
+                        <div class="flex justify-between items-start"><div><p class="text-sm font-medium opacity-80">Total Expenses</p><p class="text-3xl font-bold">${formatCurrency(totalExpenses)}</p></div><div class="p-3 bg-white/20 rounded-lg">${getIcon('trending-down', 'w-6 h-6')}</div></div>
                     </div>
                 </div>
-                <div className="space-y-6">
-                    <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
-                        <h3 className="font-semibold text-lg text-gray-800 dark:text-gray-200 mb-4">Total Overtime Earned</h3>
-                        <p className="text-3xl font-bold text-gray-800 dark:text-gray-200">{formatCurrency(totalOvertime)}</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">from {overtime.length} shifts</p>
-                        <button onClick={() => setPage('overtime')} className="w-full flex items-center justify-center bg-blue-500 text-white px-4 py-2 rounded-lg shadow-md hover:bg-blue-600 transition-colors">
-                            Manage Overtime <ArrowRight className="w-4 h-4 ml-2" />
-                        </button>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
+                        <h3 class="font-semibold text-lg text-gray-800 dark:text-gray-200 mb-4">Expense Composition</h3>
+                        <canvas id="expenseChart"></canvas>
                     </div>
-                     <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
-                        <h3 className="font-semibold text-lg text-gray-800 dark:text-gray-200 mb-4">Quick Actions</h3>
-                        <div className="space-y-3">
-                            <button onClick={() => setPage('income')} className="w-full text-left font-medium text-blue-600 dark:text-blue-400 hover:underline">Add Income Source</button>
-                            <button onClick={() => setPage('budget')} className="w-full text-left font-medium text-blue-600 dark:text-blue-400 hover:underline">Add Budget Item</button>
-                            <button onClick={() => setPage('subscriptions')} className="w-full text-left font-medium text-blue-600 dark:text-blue-400 hover:underline">Manage Subscriptions</button>
+                    <div class="space-y-6">
+                        <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
+                            <h3 class="font-semibold text-lg text-gray-800 dark:text-gray-200 mb-4">Total Overtime Earned</h3>
+                            <p class="text-3xl font-bold text-gray-800 dark:text-gray-200">${formatCurrency(overtimeIncome)}</p>
+                            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">from ${state.overtime.length} shifts</p>
+                            <button data-page="overtime" class="nav-item w-full flex items-center justify-center bg-blue-500 text-white px-4 py-2 rounded-lg shadow-md hover:bg-blue-600 transition-colors">Manage Overtime ${getIcon('arrow-right', 'w-4 h-4 ml-2')}</button>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
-    );
-};
+            </div>`;
+        
+        // Chart.js rendering
+        const ctx = document.getElementById('expenseChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: ['Budget Items', 'Subscriptions'],
+                datasets: [{
+                    data: [totalBudgeted, totalSubscriptionCost],
+                    backgroundColor: ['#4f46e5', '#818cf8'],
+                    borderColor: document.documentElement.classList.contains('dark') ? '#1f2937' : '#fff',
+                    borderWidth: 2,
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                           color: document.documentElement.classList.contains('dark') ? '#d1d5db' : '#374151',
+                        }
+                    },
+                }
+            }
+        });
+    }
 
-const StatCard = ({ title, value, icon, color }) => {
-    const colors = {
-        blue: 'from-blue-500 to-indigo-600',
-        green: 'from-green-500 to-emerald-600',
-        red: 'from-red-500 to-rose-600',
-    };
-    return (
-        <div className={`bg-gradient-to-br ${colors[color]} text-white p-6 rounded-xl shadow-lg`}>
-            <div className="flex justify-between items-start">
-                <div>
-                    <p className="text-sm font-medium opacity-80">{title}</p>
-                    <p className="text-3xl font-bold">{value}</p>
-                </div>
-                <div className="p-3 bg-white/20 rounded-lg">
-                    {React.cloneElement(icon, { className: "w-6 h-6 text-white" })}
-                </div>
-            </div>
-        </div>
-    );
-};
-
-const IncomePage = ({ incomeSources, setIncomeSources }) => {
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingIncome, setEditingIncome] = useState(null);
-    const [deletingIncome, setDeletingIncome] = useState(null);
-    const [newItem, setNewItem] = useState({ name: '', amount: '', type: 'Primary' });
-
-    const totalIncome = incomeSources.reduce((sum, i) => sum + i.amount, 0);
-
-    const handleInputChange = (e) => {
-        const { name, value } = e.target;
-        if (editingIncome) {
-            setEditingIncome({ ...editingIncome, [name]: value });
-        } else {
-            setNewItem({ ...newItem, [name]: value });
-        }
-    };
-
-    const handleAddNew = () => {
-        setEditingIncome(null);
-        setNewItem({ name: '', amount: '', type: 'Primary' });
-        setIsModalOpen(true);
-    };
-
-    const handleEdit = (income) => {
-        setEditingIncome(income);
-        setIsModalOpen(true);
-    };
-
-    const handleDelete = (income) => {
-        setDeletingIncome(income);
-    };
-
-    const confirmDelete = () => {
-        setIncomeSources(incomeSources.filter(i => i.id !== deletingIncome.id));
-        setDeletingIncome(null);
-    };
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        if (editingIncome) {
-            if (!editingIncome.name || !editingIncome.amount) return;
-            setIncomeSources(incomeSources.map(i => i.id === editingIncome.id ? { ...editingIncome, amount: parseFloat(editingIncome.amount) } : i));
-        } else {
-            if (!newItem.name || !newItem.amount) return;
-            setIncomeSources([...incomeSources, { ...newItem, id: Date.now(), amount: parseFloat(newItem.amount) }]);
-        }
-        setIsModalOpen(false);
-        setEditingIncome(null);
-    };
-
-    const incomeForm = (
-        <form onSubmit={handleSubmit}>
-            <div className="p-6 space-y-4">
-                <div>
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Source Name</label>
-                    <input type="text" name="name" value={editingIncome ? editingIncome.name : newItem.name} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required />
-                </div>
-                <div>
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Amount (£)</label>
-                    <input type="number" name="amount" value={editingIncome ? editingIncome.amount : newItem.amount} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required />
-                </div>
-                <div>
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Type</label>
-                    <select name="type" value={editingIncome ? editingIncome.type : newItem.type} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        <option>Primary</option>
-                        <option>Side Hustle</option>
-                        <option>Other</option>
-                    </select>
-                </div>
-            </div>
-            <div className="p-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 text-right rounded-b-xl">
-                <button type="submit" className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">{editingIncome ? 'Save Changes' : 'Add Income'}</button>
-            </div>
-        </form>
-    );
-
-    return (
-        <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-200">Income Sources</h2>
-                <button onClick={handleAddNew} className="flex items-center bg-blue-500 text-white px-4 py-2 rounded-lg shadow-md hover:bg-blue-600 transition-colors">
-                    <PlusCircle className="w-5 h-5 mr-2" />
-                    Add Income
-                </button>
-            </div>
-            <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-md">
-                 <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                        <thead className="border-b border-gray-200 dark:border-gray-700">
-                            <tr>
-                                <th className="p-3 text-sm font-semibold text-gray-500 dark:text-gray-400">Source</th>
-                                <th className="p-3 text-sm font-semibold text-gray-500 dark:text-gray-400">Type</th>
-                                <th className="p-3 text-sm font-semibold text-gray-500 dark:text-gray-400 text-right">Amount</th>
-                                <th className="p-3 text-sm font-semibold text-gray-500 dark:text-gray-400 text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {incomeSources.map(source => (
-                                <tr key={source.id} className="border-b border-gray-200 dark:border-gray-700 last:border-0">
-                                    <td className="p-3 font-medium text-gray-800 dark:text-gray-200">{source.name}</td>
-                                    <td className="p-3"><span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">{source.type}</span></td>
-                                    <td className="p-3 text-right font-semibold text-green-500">{formatCurrency(source.amount)}</td>
-                                    <td className="p-3 text-right">
-                                        <div className="flex justify-end items-center space-x-2">
-                                            <button onClick={() => handleEdit(source)} className="p-2 text-gray-500 hover:text-blue-500 dark:hover:text-blue-400 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"><Pencil className="w-4 h-4" /></button>
-                                            <button onClick={() => handleDelete(source)} className="p-2 text-gray-500 hover:text-red-500 dark:hover:text-red-400 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"><Trash2 className="w-4 h-4" /></button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                        <tfoot className="border-t-2 border-gray-200 dark:border-gray-700">
-                            <tr>
-                                <td colSpan="3" className="p-3 font-bold text-gray-800 dark:text-gray-200">Total Monthly Income</td>
-                                <td className="p-3 text-right font-bold text-lg text-green-500">{formatCurrency(totalIncome)}</td>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
-            </div>
-            {isModalOpen && <Modal onClose={() => setIsModalOpen(false)} title={editingIncome ? 'Edit Income Source' : 'Add New Income Source'}>{incomeForm}</Modal>}
-            {deletingIncome && (
-                <Modal onClose={() => setDeletingIncome(null)} title="Confirm Deletion">
-                    <div className="p-6">
-                        <p className="text-gray-700 dark:text-gray-300">Are you sure you want to delete the income source for <span className="font-bold">{deletingIncome.name}</span>? This action cannot be undone.</p>
-                    </div>
-                    <div className="p-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 flex justify-end space-x-2 rounded-b-xl">
-                        <button onClick={() => setDeletingIncome(null)} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors">Cancel</button>
-                        <button onClick={confirmDelete} className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">Delete</button>
-                    </div>
-                </Modal>
-            )}
-        </div>
-    )
-};
-
-const BudgetPage = ({ budgets, setBudgets }) => {
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingBudget, setEditingBudget] = useState(null);
-    const [deletingBudget, setDeletingBudget] = useState(null);
-    const [newItem, setNewItem] = useState({ name: '', category: 'Housing', amount: '', dueDate: '', status: 'Upcoming' });
-
-    const totalBudgeted = budgets.reduce((sum, b) => sum + b.amount, 0);
-
-    const handleInputChange = (e) => {
-        const { name, value } = e.target;
-        if (editingBudget) {
-            setEditingBudget({ ...editingBudget, [name]: value });
-        } else {
-            setNewItem({ ...newItem, [name]: value });
-        }
-    };
-
-    const handleAddNew = () => {
-        setEditingBudget(null);
-        setNewItem({ name: '', category: 'Housing', amount: '', dueDate: '', status: 'Upcoming' });
-        setIsModalOpen(true);
-    };
-
-    const handleEdit = (item) => {
-        setEditingBudget(item);
-        setIsModalOpen(true);
-    };
-
-    const handleDelete = (item) => {
-        setDeletingBudget(item);
-    };
-
-    const confirmDelete = () => {
-        setBudgets(budgets.filter(b => b.id !== deletingBudget.id));
-        setDeletingBudget(null);
-    };
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        if (editingBudget) {
-            if (!editingBudget.name || !editingBudget.amount) return;
-            setBudgets(budgets.map(b => b.id === editingBudget.id ? { ...editingBudget, amount: parseFloat(editingBudget.amount) } : b));
-        } else {
-            if (!newItem.name || !newItem.amount) return;
-            setBudgets([...budgets, { ...newItem, id: Date.now(), amount: parseFloat(newItem.amount) }]);
-        }
-        setIsModalOpen(false);
-        setEditingBudget(null);
-    };
-
-    const StatusBadge = ({ status }) => {
-        const statusStyles = {
-            'Paid': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-            'Upcoming': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
-            'Overdue': 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
-            'Ongoing': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
-        };
-        return (
-            <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${statusStyles[status] || 'bg-gray-100 text-gray-800'}`}>
-                {status}
-            </span>
-        );
-    };
-
-    const budgetForm = (
-        <form onSubmit={handleSubmit}>
-            <div className="p-6 space-y-4">
-                <div>
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Item Name</label>
-                    <input type="text" name="name" value={editingBudget ? editingBudget.name : newItem.name} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required />
-                </div>
-                 <div>
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Amount (£)</label>
-                    <input type="number" name="amount" value={editingBudget ? editingBudget.amount : newItem.amount} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required />
-                </div>
-                 <div>
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Category</label>
-                    <select name="category" value={editingBudget ? editingBudget.category : newItem.category} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        {Object.keys(categoryIcons).filter(c => c !== 'Income').map(cat => <option key={cat}>{cat}</option>)}
-                    </select>
-                </div>
-                 <div>
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Due Date</label>
-                    <input type="date" name="dueDate" value={editingBudget ? editingBudget.dueDate : newItem.dueDate} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
-                </div>
-                <div>
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
-                    <select name="status" value={editingBudget ? editingBudget.status : newItem.status} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        <option>Upcoming</option>
-                        <option>Paid</option>
-                        <option>Overdue</option>
-                        <option>Ongoing</option>
-                    </select>
-                </div>
-            </div>
-            <div className="p-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 text-right rounded-b-xl">
-                <button type="submit" className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">{editingBudget ? 'Save Changes' : 'Add Item'}</button>
-            </div>
-        </form>
-    );
-
-    return (
-        <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-200">Budget Items</h2>
-                <button onClick={handleAddNew} className="flex items-center bg-blue-500 text-white px-4 py-2 rounded-lg shadow-md hover:bg-blue-600 transition-colors">
-                    <PlusCircle className="w-5 h-5 mr-2" />
-                    Add Item
-                </button>
-            </div>
-            <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-md">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                        <thead className="border-b border-gray-200 dark:border-gray-700">
-                            <tr>
-                                <th className="p-3 text-sm font-semibold text-gray-500 dark:text-gray-400">Item</th>
-                                <th className="p-3 text-sm font-semibold text-gray-500 dark:text-gray-400">Category</th>
-                                <th className="p-3 text-sm font-semibold text-gray-500 dark:text-gray-400 hidden sm:table-cell">Due Date</th>
-                                <th className="p-3 text-sm font-semibold text-gray-500 dark:text-gray-400">Status</th>
-                                <th className="p-3 text-sm font-semibold text-gray-500 dark:text-gray-400 text-right">Amount</th>
-                                <th className="p-3 text-sm font-semibold text-gray-500 dark:text-gray-400 text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {budgets.map(item => (
-                                <tr key={item.id} className="border-b border-gray-200 dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                    <td className="p-3 font-medium text-gray-800 dark:text-gray-200">{item.name}</td>
-                                    <td className="p-3">
-                                        <span className="inline-flex items-center text-xs font-medium text-gray-600 dark:text-gray-300">
-                                            {categoryIcons[item.category] || <BookOpen className="w-4 h-4" />}
-                                            <span className="ml-2">{item.category}</span>
-                                        </span>
-                                    </td>
-                                    <td className="p-3 text-sm text-gray-600 dark:text-gray-300 hidden sm:table-cell">{item.dueDate}</td>
-                                    <td className="p-3"><StatusBadge status={item.status} /></td>
-                                    <td className="p-3 text-right font-semibold text-gray-700 dark:text-gray-200">{formatCurrency(item.amount)}</td>
-                                    <td className="p-3 text-right">
-                                        <div className="flex justify-end items-center space-x-2">
-                                            <button onClick={() => handleEdit(item)} className="p-2 text-gray-500 hover:text-blue-500 dark:hover:text-blue-400 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"><Pencil className="w-4 h-4" /></button>
-                                            <button onClick={() => handleDelete(item)} className="p-2 text-gray-500 hover:text-red-500 dark:hover:text-red-400 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"><Trash2 className="w-4 h-4" /></button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                         <tfoot className="border-t-2 border-gray-200 dark:border-gray-700">
-                            <tr>
-                                <td colSpan="5" className="p-3 font-bold text-gray-800 dark:text-gray-200">Total Budgeted</td>
-                                <td className="p-3 text-right font-bold text-lg text-gray-800 dark:text-gray-200">{formatCurrency(totalBudgeted)}</td>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
-            </div>
-            {isModalOpen && <Modal onClose={() => setIsModalOpen(false)} title={editingBudget ? 'Edit Budget Item' : 'Add New Budget Item'}>{budgetForm}</Modal>}
-            {deletingBudget && (
-                <Modal onClose={() => setDeletingBudget(null)} title="Confirm Deletion">
-                    <div className="p-6">
-                        <p className="text-gray-700 dark:text-gray-300">Are you sure you want to delete the budget item for <span className="font-bold">{deletingBudget.name}</span>? This action cannot be undone.</p>
-                    </div>
-                    <div className="p-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 flex justify-end space-x-2 rounded-b-xl">
-                        <button onClick={() => setDeletingBudget(null)} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors">Cancel</button>
-                        <button onClick={confirmDelete} className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">Delete</button>
-                    </div>
-                </Modal>
-            )}
-        </div>
-    );
-};
-
-const SubscriptionsPage = ({ subscriptions, setSubscriptions }) => {
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingSubscription, setEditingSubscription] = useState(null);
-    const [deletingSubscription, setDeletingSubscription] = useState(null);
-    const [newItem, setNewItem] = useState({ name: '', amount: '', billingCycle: 'Monthly', nextPayment: '' });
-
-    const totalMonthlyCost = subscriptions.reduce((sum, s) => sum + s.amount, 0);
-
-    const handleInputChange = (e) => {
-        const { name, value } = e.target;
-        if (editingSubscription) {
-            setEditingSubscription({ ...editingSubscription, [name]: value });
-        } else {
-            setNewItem({ ...newItem, [name]: value });
-        }
-    };
-
-    const handleAddNew = () => {
-        setEditingSubscription(null);
-        setNewItem({ name: '', amount: '', billingCycle: 'Monthly', nextPayment: '' });
-        setIsModalOpen(true);
-    };
-
-    const handleEdit = (sub) => {
-        setEditingSubscription(sub);
-        setIsModalOpen(true);
-    };
-
-    const handleDelete = (sub) => {
-        setDeletingSubscription(sub);
-    };
-
-    const confirmDelete = () => {
-        setSubscriptions(subscriptions.filter(s => s.id !== deletingSubscription.id));
-        setDeletingSubscription(null);
-    };
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        if (editingSubscription) {
-            // Update
-            if (!editingSubscription.name || !editingSubscription.amount) return;
-            setSubscriptions(subscriptions.map(s => s.id === editingSubscription.id ? { ...editingSubscription, amount: parseFloat(editingSubscription.amount) } : s));
-        } else {
-            // Add new
-            if (!newItem.name || !newItem.amount) return;
-            setSubscriptions([...subscriptions, { ...newItem, id: Date.now(), amount: parseFloat(newItem.amount) }]);
-        }
-        setIsModalOpen(false);
-        setEditingSubscription(null);
-    };
-
-    const subscriptionForm = (
-        <form onSubmit={handleSubmit}>
-            <div className="p-6 space-y-4">
-                <div>
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Name</label>
-                    <input type="text" name="name" value={editingSubscription ? editingSubscription.name : newItem.name} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required />
-                </div>
-                <div>
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Amount (£)</label>
-                    <input type="number" step="0.01" name="amount" value={editingSubscription ? editingSubscription.amount : newItem.amount} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required />
-                </div>
-                <div>
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Billing Cycle</label>
-                    <select name="billingCycle" value={editingSubscription ? editingSubscription.billingCycle : newItem.billingCycle} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        <option>Monthly</option>
-                        <option>Annually</option>
-                        <option>Quarterly</option>
-                    </select>
-                </div>
-                <div>
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Next Payment Date</label>
-                    <input type="date" name="nextPayment" value={editingSubscription ? editingSubscription.nextPayment : newItem.nextPayment} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
-                </div>
-            </div>
-            <div className="p-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 text-right rounded-b-xl">
-                <button type="submit" className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">{editingSubscription ? 'Save Changes' : 'Add Subscription'}</button>
-            </div>
-        </form>
-    );
-
-    return (
-        <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                    <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-200">Subscriptions</h2>
-                    <p className="text-gray-500 dark:text-gray-400 mt-1">Total Monthly Cost: <span className="font-bold text-gray-700 dark:text-gray-300">{formatCurrency(totalMonthlyCost)}</span></p>
-                </div>
-                <button
-                    onClick={handleAddNew}
-                    className="flex items-center bg-blue-500 text-white px-4 py-2 rounded-lg shadow-md hover:bg-blue-600 transition-colors"
-                >
-                    <PlusCircle className="w-5 h-5 mr-2" />
-                    Add Subscription
-                </button>
-            </div>
-            <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-md">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                        <thead className="border-b border-gray-200 dark:border-gray-700">
-                            <tr>
-                                <th className="p-3 text-sm font-semibold text-gray-500 dark:text-gray-400">Name</th>
-                                <th className="p-3 text-sm font-semibold text-gray-500 dark:text-gray-400">Amount</th>
-                                <th className="p-3 text-sm font-semibold text-gray-500 dark:text-gray-400 hidden md:table-cell">Billing Cycle</th>
-                                <th className="p-3 text-sm font-semibold text-gray-500 dark:text-gray-400 hidden sm:table-cell">Next Payment</th>
-                                <th className="p-3 text-sm font-semibold text-gray-500 dark:text-gray-400 text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {subscriptions.map(sub => (
-                                <tr key={sub.id} className="border-b border-gray-200 dark:border-gray-700 last:border-0">
-                                    <td className="p-3 font-medium text-gray-800 dark:text-gray-200">{sub.name}</td>
-                                    <td className="p-3 text-gray-600 dark:text-gray-300">{formatCurrency(sub.amount)}</td>
-                                    <td className="p-3 text-gray-600 dark:text-gray-300 hidden md:table-cell">{sub.billingCycle}</td>
-                                    <td className="p-3 text-gray-600 dark:text-gray-300 hidden sm:table-cell">{sub.nextPayment}</td>
-                                    <td className="p-3 text-right">
-                                        <div className="flex justify-end items-center space-x-2">
-                                            <button onClick={() => handleEdit(sub)} className="p-2 text-gray-500 hover:text-blue-500 dark:hover:text-blue-400 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"><Pencil className="w-4 h-4" /></button>
-                                            <button onClick={() => handleDelete(sub)} className="p-2 text-gray-500 hover:text-red-500 dark:hover:text-red-400 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"><Trash2 className="w-4 h-4" /></button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            {isModalOpen && <Modal onClose={() => setIsModalOpen(false)} title={editingSubscription ? 'Edit Subscription' : 'Add New Subscription'}>{subscriptionForm}</Modal>}
-            {deletingSubscription && (
-                <Modal onClose={() => setDeletingSubscription(null)} title="Confirm Deletion">
-                    <div className="p-6">
-                        <p className="text-gray-700 dark:text-gray-300">Are you sure you want to delete the subscription for <span className="font-bold">{deletingSubscription.name}</span>? This action cannot be undone.</p>
-                    </div>
-                    <div className="p-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 flex justify-end space-x-2 rounded-b-xl">
-                        <button onClick={() => setDeletingSubscription(null)} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors">Cancel</button>
-                        <button onClick={confirmDelete} className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">Delete</button>
-                    </div>
-                </Modal>
-            )}
-        </div>
-    );
-};
-
-const OvertimePage = ({ overtime, setOvertime }) => {
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingOvertime, setEditingOvertime] = useState(null);
-    const [deletingOvertime, setDeletingOvertime] = useState(null);
-    const [newItem, setNewItem] = useState({ date: '', time: '', amount: '', allocation: '', status: 'Not Started' });
-
-    const totalOvertime = overtime.reduce((sum, o) => sum + o.amount, 0);
-
-    const handleInputChange = (e) => {
-        const { name, value } = e.target;
-        if (editingOvertime) {
-            setEditingOvertime({ ...editingOvertime, [name]: value });
-        } else {
-            setNewItem({ ...newItem, [name]: value });
-        }
-    };
-
-    const handleAddNew = () => {
-        setEditingOvertime(null);
-        setNewItem({ date: '', time: '', amount: '', allocation: '', status: 'Not Started' });
-        setIsModalOpen(true);
-    };
-
-    const handleEdit = (item) => {
-        setEditingOvertime(item);
-        setIsModalOpen(true);
-    };
-
-    const handleDelete = (item) => {
-        setDeletingOvertime(item);
-    };
-
-    const confirmDelete = () => {
-        setOvertime(overtime.filter(o => o.id !== deletingOvertime.id));
-        setDeletingOvertime(null);
-    };
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        if (editingOvertime) {
-            if (!editingOvertime.date || !editingOvertime.amount) return;
-            setOvertime(overtime.map(o => o.id === editingOvertime.id ? { ...editingOvertime, amount: parseFloat(editingOvertime.amount) } : o));
-        } else {
-            if (!newItem.date || !newItem.amount) return;
-            setOvertime([...overtime, { ...newItem, id: Date.now(), amount: parseFloat(newItem.amount) }]);
-        }
-        setIsModalOpen(false);
-        setEditingOvertime(null);
-    };
+    // --- RENDER OTHER PAGES (INCOME, BUDGETS, ETC.) ---
+    // Each function will be similar: build an HTML string and set mainContent.innerHTML
+    // For brevity in this example, I'll show the structure for one page.
     
-    const StatusBadge = ({ status }) => {
-        const statusStyles = {
-            'Completed': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-            'Not Started': 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
-        };
-        return (
-            <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${statusStyles[status] || 'bg-gray-100 text-gray-800'}`}>
-                {status}
-            </span>
-        );
-    };
-
-    const overtimeForm = (
-        <form onSubmit={handleSubmit}>
-            <div className="p-6 space-y-4">
-                <div>
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Date</label>
-                    <input type="date" name="date" value={editingOvertime ? editingOvertime.date : newItem.date} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required />
+    function renderIncomePage() {
+        const totalIncome = state.incomeSources.reduce((sum, i) => sum + i.amount, 0);
+        mainContent.innerHTML = `
+            <div class="space-y-6">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-3xl font-bold text-gray-800 dark:text-gray-200">Income Sources</h2>
+                    <button id="add-income-btn" class="flex items-center bg-blue-500 text-white px-4 py-2 rounded-lg shadow-md hover:bg-blue-600 transition-colors">${getIcon('plus-circle', 'w-5 h-5 mr-2')} Add Income</button>
                 </div>
-                <div>
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Time</label>
-                    <input type="text" name="time" value={editingOvertime ? editingOvertime.time : newItem.time} onChange={handleInputChange} placeholder="e.g., 19:00 - 07:00" className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required />
-                </div>
-                <div>
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Amount (£)</label>
-                    <input type="number" step="0.01" name="amount" value={editingOvertime ? editingOvertime.amount : newItem.amount} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required />
-                </div>
-                <div>
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Allocation</label>
-                    <input type="text" name="allocation" value={editingOvertime ? editingOvertime.allocation : newItem.allocation} onChange={handleInputChange} placeholder="e.g., Car Insurance" className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required />
-                </div>
-                 <div>
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
-                    <select name="status" value={editingOvertime ? editingOvertime.status : newItem.status} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        <option>Not Started</option>
-                        <option>Completed</option>
-                    </select>
-                </div>
-            </div>
-            <div className="p-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 text-right rounded-b-xl">
-                <button type="submit" className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">{editingOvertime ? 'Save Changes' : 'Add Overtime'}</button>
-            </div>
-        </form>
-    );
-
-    return (
-        <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-200">Overtime Log</h2>
-                <button onClick={handleAddNew} className="flex items-center bg-blue-500 text-white px-4 py-2 rounded-lg shadow-md hover:bg-blue-600 transition-colors">
-                    <PlusCircle className="w-5 h-5 mr-2" />
-                    Add Overtime
-                </button>
-            </div>
-            <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-md">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                        <thead className="border-b border-gray-200 dark:border-gray-700">
-                            <tr>
-                                <th className="p-3 text-sm font-semibold text-gray-500 dark:text-gray-400">Date</th>
-                                <th className="p-3 text-sm font-semibold text-gray-500 dark:text-gray-400">Time</th>
-                                <th className="p-3 text-sm font-semibold text-gray-500 dark:text-gray-400">Allocation</th>
-                                <th className="p-3 text-sm font-semibold text-gray-500 dark:text-gray-400">Status</th>
-                                <th className="p-3 text-sm font-semibold text-gray-500 dark:text-gray-400 text-right">Amount</th>
-                                <th className="p-3 text-sm font-semibold text-gray-500 dark:text-gray-400 text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {overtime.map(item => (
-                                <tr key={item.id} className="border-b border-gray-200 dark:border-gray-700 last:border-0">
-                                    <td className="p-3 font-medium text-gray-800 dark:text-gray-200">{item.date}</td>
-                                    <td className="p-3 text-gray-600 dark:text-gray-300">{item.time}</td>
-                                    <td className="p-3 text-gray-600 dark:text-gray-300">{item.allocation}</td>
-                                    <td className="p-3"><StatusBadge status={item.status} /></td>
-                                    <td className="p-3 text-right font-semibold text-green-500">{formatCurrency(item.amount)}</td>
-                                    <td className="p-3 text-right">
-                                        <div className="flex justify-end items-center space-x-2">
-                                            <button onClick={() => handleEdit(item)} className="p-2 text-gray-500 hover:text-blue-500 dark:hover:text-blue-400 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"><Pencil className="w-4 h-4" /></button>
-                                            <button onClick={() => handleDelete(item)} className="p-2 text-gray-500 hover:text-red-500 dark:hover:text-red-400 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"><Trash2 className="w-4 h-4" /></button>
-                                        </div>
-                                    </td>
+                <div class="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-md">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead>
+                                <tr class="border-b border-gray-200 dark:border-gray-700">
+                                    <th class="p-3 text-sm font-semibold text-gray-500 dark:text-gray-400">Source</th>
+                                    <th class="p-3 text-sm font-semibold text-gray-500 dark:text-gray-400">Type</th>
+                                    <th class="p-3 text-sm font-semibold text-gray-500 dark:text-gray-400 text-right">Amount</th>
+                                    <th class="p-3 text-sm font-semibold text-gray-500 dark:text-gray-400 text-right">Actions</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                        <tfoot className="border-t-2 border-gray-200 dark:border-gray-700">
-                            <tr>
-                                <td colSpan="5" className="p-3 font-bold text-gray-800 dark:text-gray-200">Total Overtime Earned</td>
-                                <td className="p-3 text-right font-bold text-lg text-green-500">{formatCurrency(totalOvertime)}</td>
-                            </tr>
-                        </tfoot>
-                    </table>
+                            </thead>
+                            <tbody id="income-table-body">
+                                ${state.incomeSources.map(source => `
+                                    <tr class="border-b border-gray-200 dark:border-gray-700 last:border-0">
+                                        <td class="p-3 font-medium text-gray-800 dark:text-gray-200">${source.name}</td>
+                                        <td class="p-3"><span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">${source.type}</span></td>
+                                        <td class="p-3 text-right font-semibold text-green-500">${formatCurrency(source.amount)}</td>
+                                        <td class="p-3 text-right">
+                                            <div class="flex justify-end items-center space-x-2">
+                                                <button data-id="${source.id}" class="edit-btn p-2 text-gray-500 hover:text-blue-500 dark:hover:text-blue-400 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">${getIcon('pencil', 'w-4 h-4')}</button>
+                                                <button data-id="${source.id}" class="delete-btn p-2 text-gray-500 hover:text-red-500 dark:hover:text-red-400 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">${getIcon('trash-2', 'w-4 h-4')}</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                            <tfoot class="border-t-2 border-gray-200 dark:border-gray-700">
+                                <tr>
+                                    <td colspan="3" class="p-3 font-bold text-gray-800 dark:text-gray-200">Total Monthly Income</td>
+                                    <td class="p-3 text-right font-bold text-lg text-green-500">${formatCurrency(totalIncome)}</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
                 </div>
-            </div>
-            {isModalOpen && <Modal onClose={() => setIsModalOpen(false)} title={editingOvertime ? 'Edit Overtime' : 'Add New Overtime'}>{overtimeForm}</Modal>}
-            {deletingOvertime && (
-                <Modal onClose={() => setDeletingOvertime(null)} title="Confirm Deletion">
-                    <div className="p-6">
-                        <p className="text-gray-700 dark:text-gray-300">Are you sure you want to delete this overtime entry? This action cannot be undone.</p>
-                    </div>
-                    <div className="p-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 flex justify-end space-x-2 rounded-b-xl">
-                        <button onClick={() => setDeletingOvertime(null)} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors">Cancel</button>
-                        <button onClick={confirmDelete} className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">Delete</button>
-                    </div>
-                </Modal>
-            )}
-        </div>
-    )
-};
+            </div>`;
+    }
+    
+    // Placeholder for other page render functions (Budget, Subscriptions, Overtime)
+    function renderBudgetPage() { mainContent.innerHTML = `<div>Budget Page Content</div>`; }
+    function renderSubscriptionsPage() { mainContent.innerHTML = `<div>Subscriptions Page Content</div>`; }
+    function renderOvertimePage() { mainContent.innerHTML = `<div>Overtime Page Content</div>`; }
+
+
+    // --- EVENT LISTENERS ---
+    
+    // Theme Toggling
+    function handleThemeToggle() {
+        document.documentElement.classList.toggle('dark');
+    }
+    document.getElementById('theme-toggle').addEventListener('click', handleThemeToggle);
+    document.getElementById('landing-theme-toggle').addEventListener('click', handleThemeToggle);
+
+    // Page Navigation
+    document.body.addEventListener('click', (e) => {
+        const navItem = e.target.closest('.nav-item');
+        if (navItem && navItem.dataset.page) {
+            e.preventDefault();
+            state.activePage = navItem.dataset.page;
+            renderPage();
+            document.getElementById('sidebar').classList.add('-translate-x-full');
+        }
+    });
+    
+    // Sidebar Toggle
+    document.getElementById('open-sidebar-btn').addEventListener('click', () => {
+        document.getElementById('sidebar').classList.remove('-translate-x-full');
+    });
+    document.getElementById('close-sidebar-btn').addEventListener('click', () => {
+        document.getElementById('sidebar').classList.add('-translate-x-full');
+    });
+
+    // App Entry / Exit
+    document.getElementById('enter-dashboard-btn').addEventListener('click', () => {
+        document.getElementById('landing-page').classList.add('hidden');
+        document.getElementById('app-container').style.display = 'flex';
+        renderPage();
+    });
+    document.getElementById('logout-btn').addEventListener('click', (e) => {
+        e.preventDefault();
+        document.getElementById('landing-page').classList.remove('hidden');
+        document.getElementById('app-container').style.display = 'none';
+    });
+    
+    // Generic CRUD event listeners using event delegation
+    mainContent.addEventListener('click', e => {
+        const addBtnId = e.target.closest('button')?.id;
+        const editBtn = e.target.closest('.edit-btn');
+        const deleteBtn = e.target.closest('.delete-btn');
+
+        if (addBtnId === 'add-income-btn') {
+            // Logic to show Add Income Modal
+            alert('Add Income functionality not fully implemented in this example.');
+        } else if (editBtn) {
+            const id = editBtn.dataset.id;
+            // Logic to find item by ID and show Edit Modal
+            alert(`Edit item with ID: ${id}`);
+        } else if (deleteBtn) {
+            const id = deleteBtn.dataset.id;
+            // Logic to show Delete Confirmation Modal
+            if (confirm('Are you sure you want to delete this item?')) {
+                // Logic to delete item from state and re-render
+                alert(`Deleted item with ID: ${id}`);
+            }
+        }
+    });
+
+    // --- INITIAL RENDER ---
+    // This is a simplified version. A full implementation would have render functions for all pages
+    // and full modal logic for Add/Edit/Delete on each.
+});
+</script>
+
+</body>
+</html>
