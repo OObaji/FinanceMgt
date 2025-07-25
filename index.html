@@ -24,6 +24,11 @@
         ::-webkit-scrollbar-thumb:hover { background: #64748b; }
         .dark ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
         .hidden { display: none; }
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-in-out;
+        }
     </style>
     <script>
         // Configuration for Tailwind CSS dark mode
@@ -107,25 +112,42 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     // --- STATE MANAGEMENT (DATA) ---
+    const currentYear = new Date().getFullYear();
+    const blankYearData = () => ({
+        'January': [], 'February': [], 'March': [], 'April': [], 'May': [], 'June': [], 
+        'July': [], 'August': [], 'September': [], 'October': [], 'November': [], 'December': []
+    });
+
     const initialState = {
-        incomeSources: [
-            { id: 1, name: 'Monthly Salary', amount: 3800, type: 'Primary' },
-            { id: 2, name: 'Freelance Project', amount: 650, type: 'Side Hustle' },
-        ],
-        budgets: [
-            { id: 1, name: 'Rent', category: 'Housing', amount: 1450, dueDate: '2024-08-01', status: 'Paid' },
-            { id: 2, name: 'Council Tax', category: 'Housing', amount: 180, dueDate: '2024-08-05', status: 'Paid' },
-            { id: 3, name: 'Groceries', category: 'Groceries', amount: 400, dueDate: 'N/A', status: 'Ongoing' },
-        ],
+        income: {
+            [currentYear]: {
+                ...blankYearData(),
+                'July': [
+                    { id: 1, name: 'Monthly Salary', amount: 3800, type: 'Primary' },
+                    { id: 2, name: 'Freelance Project', amount: 650, type: 'Side Hustle' },
+                ]
+            }
+        },
+        budgets: {
+            [currentYear]: {
+                ...blankYearData(),
+                'August': [
+                    { id: 1, name: 'Rent', category: 'Housing', amount: 1450, status: 'Paid' },
+                    { id: 2, name: 'Council Tax', category: 'Housing', amount: 180, status: 'Paid' },
+                    { id: 3, name: 'Groceries', category: 'Groceries', amount: 400, status: 'Ongoing' },
+                ]
+            }
+        },
         subscriptions: [
             { id: 1, name: 'Netflix', amount: 13.99, billingCycle: 'Monthly', nextPayment: '2024-08-15' },
             { id: 2, name: 'Spotify', amount: 10.99, billingCycle: 'Monthly', nextPayment: '2024-08-11' },
         ],
         overtime: [
-            { id: 1, date: '2024-07-20', time: '18:00 - 22:00', amount: 120, allocation: 'Vacation Fund', status: 'Completed' },
-            { id: 2, date: '2024-07-28', time: '20:00 - 23:00', amount: 70, allocation: 'Vacation Fund', status: 'Not Started' },
+            { id: 1, date: '2024-07-20', time: '18:00 - 22:00', hourlyRate: 30, amount: 120, allocation: 'Vacation Fund', status: 'Completed' },
+            { id: 2, date: '2024-07-28', time: '20:00 - 23:00', hourlyRate: 25, amount: 75, allocation: 'Vacation Fund', status: 'Not Started' },
         ],
         activePage: 'dashboard',
+        currentYear: currentYear,
     };
 
     // --- LOCAL STORAGE FUNCTIONS ---
@@ -135,7 +157,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function loadState() {
         const savedState = localStorage.getItem('financeMgtState');
-        return savedState ? JSON.parse(savedState) : null;
+        if (!savedState) return null;
+
+        const parsedState = JSON.parse(savedState);
+        // --- Data Migration for old structure ---
+        if (parsedState.monthlyIncome) {
+            parsedState.income = { [new Date().getFullYear()]: parsedState.monthlyIncome };
+            delete parsedState.monthlyIncome;
+        }
+        if (parsedState.monthlyBudgets) {
+            parsedState.budgets = { [new Date().getFullYear()]: parsedState.monthlyBudgets };
+            delete parsedState.monthlyBudgets;
+        }
+        if (!parsedState.currentYear) {
+            parsedState.currentYear = new Date().getFullYear();
+        }
+        return parsedState;
     }
 
     let state = loadState() || initialState;
@@ -177,7 +214,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- MODAL MANAGEMENT ---
     function openModal(title, content) {
         modalContainer.innerHTML = `
-            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full transform transition-all" onclick="event.stopPropagation()">
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full transform transition-all">
                 <div class="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
                     <h3 class="text-xl font-bold text-gray-800 dark:text-gray-200">${title}</h3>
                     <button data-action="close-modal" class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">${getIcon('x')}</button>
@@ -221,23 +258,27 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // --- DASHBOARD PAGE ---
     function renderDashboard() {
-        const primaryIncome = state.incomeSources.reduce((sum, i) => sum + i.amount, 0);
+        const year = state.currentYear;
+        const totalIncome = state.income[year] ? Object.values(state.income[year]).flat().reduce((sum, i) => sum + i.amount, 0) : 0;
         const overtimeIncome = state.overtime.reduce((sum, o) => sum + o.amount, 0);
-        const totalIncome = primaryIncome + overtimeIncome;
-        const totalBudgeted = state.budgets.reduce((sum, b) => sum + b.amount, 0);
+        const grandTotalIncome = totalIncome + overtimeIncome;
+        const totalBudgeted = state.budgets[year] ? Object.values(state.budgets[year]).flat().reduce((sum, b) => sum + b.amount, 0) : 0;
         const totalSubscriptionCost = state.subscriptions.reduce((sum, s) => sum + s.amount, 0);
         const totalExpenses = totalBudgeted + totalSubscriptionCost;
-        const balance = totalIncome - totalExpenses;
+        const balance = grandTotalIncome - totalExpenses;
 
         mainContent.innerHTML = `
             <div class="space-y-6">
-                <h2 class="text-3xl font-bold text-gray-800 dark:text-gray-200">Dashboard</h2>
+                <div class="flex items-center space-x-4">
+                    <h2 class="text-3xl font-bold text-gray-800 dark:text-gray-200">Dashboard</h2>
+                    <span class="font-semibold text-gray-500 dark:text-gray-400">(${year})</span>
+                </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     <div class="bg-gradient-to-br from-blue-500 to-indigo-600 text-white p-6 rounded-xl shadow-lg">
                         <div class="flex justify-between items-start"><div><p class="text-sm font-medium opacity-80">Net Balance</p><p class="text-3xl font-bold">${formatCurrency(balance)}</p></div><div class="p-3 bg-white/20 rounded-lg">${getIcon('dollar-sign', 'w-6 h-6')}</div></div>
                     </div>
                     <div class="bg-gradient-to-br from-green-500 to-emerald-600 text-white p-6 rounded-xl shadow-lg">
-                        <div class="flex justify-between items-start"><div><p class="text-sm font-medium opacity-80">Total Income</p><p class="text-3xl font-bold">${formatCurrency(totalIncome)}</p></div><div class="p-3 bg-white/20 rounded-lg">${getIcon('trending-up', 'w-6 h-6')}</div></div>
+                        <div class="flex justify-between items-start"><div><p class="text-sm font-medium opacity-80">Total Income</p><p class="text-3xl font-bold">${formatCurrency(grandTotalIncome)}</p></div><div class="p-3 bg-white/20 rounded-lg">${getIcon('trending-up', 'w-6 h-6')}</div></div>
                     </div>
                     <div class="bg-gradient-to-br from-red-500 to-rose-600 text-white p-6 rounded-xl shadow-lg">
                         <div class="flex justify-between items-start"><div><p class="text-sm font-medium opacity-80">Total Expenses</p><p class="text-3xl font-bold">${formatCurrency(totalExpenses)}</p></div><div class="p-3 bg-white/20 rounded-lg">${getIcon('trending-down', 'w-6 h-6')}</div></div>
@@ -287,7 +328,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="space-y-6">
                 <div class="flex justify-between items-center">
                     <h2 class="text-3xl font-bold text-gray-800 dark:text-gray-200">${pageTitle}</h2>
-                    <button data-action="add" class="flex items-center bg-blue-500 text-white px-4 py-2 rounded-lg shadow-md hover:bg-blue-600 transition-colors">${getIcon('plus-circle', 'w-5 h-5 mr-2')} Add ${itemType}</button>
+                    <button data-action="add" data-type="${itemType.toLowerCase()}" class="flex items-center bg-blue-500 text-white px-4 py-2 rounded-lg shadow-md hover:bg-blue-600 transition-colors">${getIcon('plus-circle', 'w-5 h-5 mr-2')} Add ${itemType}</button>
                 </div>
                 <div class="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-md">
                     <div class="overflow-x-auto">
@@ -296,8 +337,9 @@ document.addEventListener('DOMContentLoaded', () => {
                             <tbody>${data.map(rowRenderer).join('')}</tbody>
                             <tfoot class="border-t-2 border-gray-200 dark:border-gray-700">
                                 <tr>
-                                    <td colspan="${tableHeaders.length - 1}" class="p-3 font-bold text-gray-800 dark:text-gray-200">${totalLabel}</td>
+                                    <td colspan="${tableHeaders.length - 2}" class="p-3 font-bold text-gray-800 dark:text-gray-200">${totalLabel}</td>
                                     <td class="p-3 text-right font-bold text-lg ${pageTitle.includes('Income') || pageTitle.includes('Overtime') ? 'text-green-500' : 'text-gray-800 dark:text-gray-200'}">${formatCurrency(totalValue)}</td>
+                                    <td></td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -308,45 +350,137 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // --- PAGE IMPLEMENTATIONS ---
     function renderIncomePage() {
-        createCrudPage({
-            pageTitle: 'Income Sources', itemType: 'Income', data: state.incomeSources,
-            tableHeaders: [
-                { label: 'Source' }, { label: 'Type' }, { label: 'Amount', align: 'right' }, { label: 'Actions', align: 'right' }
-            ],
-            rowRenderer: source => `
-                <tr class="border-b border-gray-200 dark:border-gray-700 last:border-0">
-                    <td class="p-3 font-medium text-gray-800 dark:text-gray-200">${source.name}</td>
-                    <td class="p-3"><span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">${source.type}</span></td>
-                    <td class="p-3 text-right font-semibold text-green-500">${formatCurrency(source.amount)}</td>
-                    <td class="p-3 text-right"><div class="flex justify-end items-center space-x-2">
-                        <button data-action="edit" data-id="${source.id}" class="p-2 text-gray-500 hover:text-blue-500 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">${getIcon('pencil', 'w-4 h-4')}</button>
-                        <button data-action="delete" data-id="${source.id}" class="p-2 text-gray-500 hover:text-red-500 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">${getIcon('trash-2', 'w-4 h-4')}</button>
-                    </div></td>
-                </tr>`,
-            totalLabel: 'Total Monthly Income', totalValue: state.incomeSources.reduce((sum, i) => sum + i.amount, 0)
-        });
+        const year = state.currentYear;
+        if (!state.income[year]) state.income[year] = blankYearData();
+
+        const months = Object.keys(state.income[year]);
+        const totalAnnualIncome = Object.values(state.income[year]).flat().reduce((sum, item) => sum + item.amount, 0);
+
+        mainContent.innerHTML = `
+            <div class="space-y-6">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div class="flex items-center gap-4">
+                        <h2 class="text-3xl font-bold text-gray-800 dark:text-gray-200">Monthly Income</h2>
+                        <div class="flex items-center gap-2">
+                           <button data-action="prev-year" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">${getIcon('chevron-left')}</button>
+                           <span class="text-2xl font-bold text-gray-700 dark:text-gray-300">${year}</span>
+                           <button data-action="next-year" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">${getIcon('chevron-right')}</button>
+                        </div>
+                    </div>
+                    <button data-action="add" data-type="income" class="flex-shrink-0 flex items-center bg-blue-500 text-white px-4 py-2 rounded-lg shadow-md hover:bg-blue-600 transition-colors">${getIcon('plus-circle', 'w-5 h-5 mr-2')} Add Income</button>
+                </div>
+                <div class="space-y-3">
+                    ${months.map(month => renderMonthAccordion(month, 'income')).join('')}
+                </div>
+                <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-md flex justify-between items-center">
+                    <h3 class="font-bold text-lg text-gray-800 dark:text-gray-200">Total Annual Estimated Income</h3>
+                    <p class="font-bold text-xl text-green-500">${formatCurrency(totalAnnualIncome)}</p>
+                </div>
+            </div>
+        `;
+    }
+    
+    function renderBudgetPage() {
+        const year = state.currentYear;
+        if (!state.budgets[year]) state.budgets[year] = blankYearData();
+
+        const months = Object.keys(state.budgets[year]);
+        const totalAnnualBudget = Object.values(state.budgets[year]).flat().reduce((sum, item) => sum + item.amount, 0);
+
+        mainContent.innerHTML = `
+            <div class="space-y-6">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                     <div class="flex items-center gap-4">
+                        <h2 class="text-3xl font-bold text-gray-800 dark:text-gray-200">Monthly Budgets</h2>
+                        <div class="flex items-center gap-2">
+                           <button data-action="prev-year" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">${getIcon('chevron-left')}</button>
+                           <span class="text-2xl font-bold text-gray-700 dark:text-gray-300">${year}</span>
+                           <button data-action="next-year" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">${getIcon('chevron-right')}</button>
+                        </div>
+                    </div>
+                    <button data-action="add" data-type="budget" class="flex-shrink-0 flex items-center bg-blue-500 text-white px-4 py-2 rounded-lg shadow-md hover:bg-blue-600 transition-colors">${getIcon('plus-circle', 'w-5 h-5 mr-2')} Add Budget Item</button>
+                </div>
+                <div class="space-y-3">
+                    ${months.map(month => renderMonthAccordion(month, 'budget')).join('')}
+                </div>
+                <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-md flex justify-between items-center">
+                    <h3 class="font-bold text-lg text-gray-800 dark:text-gray-200">Total Annual Budget</h3>
+                    <p class="font-bold text-xl text-red-500">${formatCurrency(totalAnnualBudget)}</p>
+                </div>
+            </div>
+        `;
     }
 
-    function renderBudgetPage() {
-        createCrudPage({
-            pageTitle: 'Budget Items', itemType: 'Budget', data: state.budgets,
-            tableHeaders: [
-                { label: 'Item' }, { label: 'Category' }, { label: 'Due Date' }, { label: 'Status' }, { label: 'Amount', align: 'right' }, { label: 'Actions', align: 'right' }
-            ],
-            rowRenderer: item => `
-                <tr class="border-b border-gray-200 dark:border-gray-700 last:border-0">
-                    <td class="p-3 font-medium text-gray-800 dark:text-gray-200">${item.name}</td>
-                    <td class="p-3 text-gray-600 dark:text-gray-300"><span class="inline-flex items-center text-xs font-medium">${getIcon(categoryIcons[item.category] || 'book-open', 'w-4 h-4 mr-2')} ${item.category}</span></td>
-                    <td class="p-3 text-sm text-gray-600 dark:text-gray-300">${item.dueDate}</td>
-                    <td class="p-3">${statusBadge(item.status)}</td>
-                    <td class="p-3 text-right font-semibold text-gray-700 dark:text-gray-200">${formatCurrency(item.amount)}</td>
-                    <td class="p-3 text-right"><div class="flex justify-end items-center space-x-2">
-                        <button data-action="edit" data-id="${item.id}" class="p-2 text-gray-500 hover:text-blue-500 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">${getIcon('pencil', 'w-4 h-4')}</button>
-                        <button data-action="delete" data-id="${item.id}" class="p-2 text-gray-500 hover:text-red-500 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">${getIcon('trash-2', 'w-4 h-4')}</button>
-                    </div></td>
-                </tr>`,
-            totalLabel: 'Total Budgeted', totalValue: state.budgets.reduce((sum, i) => sum + i.amount, 0)
-        });
+    function renderMonthAccordion(month, type) {
+        const year = state.currentYear;
+        const data = type === 'income' ? state.income[year][month] : state.budgets[year][month];
+        const monthlyTotal = data.reduce((sum, item) => sum + item.amount, 0);
+        const isIncome = type === 'income';
+
+        return `
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
+                <button class="accordion-header w-full flex justify-between items-center p-4 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                    <span class="font-semibold text-lg text-gray-800 dark:text-gray-200">${month}</span>
+                    <div class="flex items-center space-x-4">
+                        <span class="font-semibold text-lg ${monthlyTotal > 0 ? (isIncome ? 'text-green-500' : 'text-red-500') : 'text-gray-500 dark:text-gray-400'}">${formatCurrency(monthlyTotal)}</span>
+                        <i data-lucide="chevron-down" class="transition-transform duration-300"></i>
+                    </div>
+                </button>
+                <div class="accordion-content">
+                    <div class="border-t border-gray-200 dark:border-gray-700">
+                        ${data.length > 0 ? (isIncome ? renderIncomeTable(data, month) : renderBudgetTable(data, month)) : `<p class="p-4 text-center text-gray-500 dark:text-gray-400">No items added for this month.</p>`}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderIncomeTable(data, month) {
+        return `
+            <table class="w-full text-left">
+                <thead class="bg-gray-50 dark:bg-gray-700/50"><tr>
+                    <th class="p-3 text-sm font-semibold text-gray-500 dark:text-gray-400">Source</th>
+                    <th class="p-3 text-sm font-semibold text-gray-500 dark:text-gray-400">Type</th>
+                    <th class="p-3 text-sm font-semibold text-gray-500 dark:text-gray-400 text-right">Amount</th>
+                    <th class="p-3 text-sm font-semibold text-gray-500 dark:text-gray-400 text-right">Actions</th>
+                </tr></thead>
+                <tbody>${data.map(item => `
+                    <tr class="border-b border-gray-200 dark:border-gray-700 last:border-0">
+                        <td class="p-3 font-medium text-gray-800 dark:text-gray-200">${item.name}</td>
+                        <td class="p-3"><span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">${item.type}</span></td>
+                        <td class="p-3 text-right font-semibold text-green-500">${formatCurrency(item.amount)}</td>
+                        <td class="p-3 text-right"><div class="flex justify-end items-center space-x-2">
+                            <button data-action="edit" data-type="income" data-month="${month}" data-id="${item.id}" class="p-2 text-gray-500 hover:text-blue-500 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">${getIcon('pencil', 'w-4 h-4')}</button>
+                            <button data-action="delete" data-type="income" data-month="${month}" data-id="${item.id}" class="p-2 text-gray-500 hover:text-red-500 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">${getIcon('trash-2', 'w-4 h-4')}</button>
+                        </div></td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>`;
+    }
+
+    function renderBudgetTable(data, month) {
+        return `
+            <table class="w-full text-left">
+                <thead class="bg-gray-50 dark:bg-gray-700/50"><tr>
+                    <th class="p-3 text-sm font-semibold text-gray-500 dark:text-gray-400">Item</th>
+                    <th class="p-3 text-sm font-semibold text-gray-500 dark:text-gray-400">Category</th>
+                    <th class="p-3 text-sm font-semibold text-gray-500 dark:text-gray-400">Status</th>
+                    <th class="p-3 text-sm font-semibold text-gray-500 dark:text-gray-400 text-right">Amount</th>
+                    <th class="p-3 text-sm font-semibold text-gray-500 dark:text-gray-400 text-right">Actions</th>
+                </tr></thead>
+                <tbody>${data.map(item => `
+                    <tr class="border-b border-gray-200 dark:border-gray-700 last:border-0">
+                        <td class="p-3 font-medium text-gray-800 dark:text-gray-200">${item.name}</td>
+                        <td class="p-3 text-gray-600 dark:text-gray-300"><span class="inline-flex items-center text-xs font-medium">${getIcon(categoryIcons[item.category] || 'book-open', 'w-4 h-4 mr-2')} ${item.category}</span></td>
+                        <td class="p-3">${statusBadge(item.status)}</td>
+                        <td class="p-3 text-right font-semibold text-red-500">${formatCurrency(item.amount)}</td>
+                        <td class="p-3 text-right"><div class="flex justify-end items-center space-x-2">
+                            <button data-action="edit" data-type="budget" data-month="${month}" data-id="${item.id}" class="p-2 text-gray-500 hover:text-blue-500 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">${getIcon('pencil', 'w-4 h-4')}</button>
+                            <button data-action="delete" data-type="budget" data-month="${month}" data-id="${item.id}" class="p-2 text-gray-500 hover:text-red-500 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">${getIcon('trash-2', 'w-4 h-4')}</button>
+                        </div></td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>`;
     }
     
     function renderSubscriptionsPage() {
@@ -362,8 +496,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     <td class="p-3 text-sm text-gray-600 dark:text-gray-300">${sub.nextPayment}</td>
                     <td class="p-3 text-right font-semibold text-gray-700 dark:text-gray-200">${formatCurrency(sub.amount)}</td>
                     <td class="p-3 text-right"><div class="flex justify-end items-center space-x-2">
-                        <button data-action="edit" data-id="${sub.id}" class="p-2 text-gray-500 hover:text-blue-500 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">${getIcon('pencil', 'w-4 h-4')}</button>
-                        <button data-action="delete" data-id="${sub.id}" class="p-2 text-gray-500 hover:text-red-500 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">${getIcon('trash-2', 'w-4 h-4')}</button>
+                        <button data-action="edit" data-id="${sub.id}" data-type="subscriptions" class="p-2 text-gray-500 hover:text-blue-500 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">${getIcon('pencil', 'w-4 h-4')}</button>
+                        <button data-action="delete" data-id="${sub.id}" data-type="subscriptions" class="p-2 text-gray-500 hover:text-red-500 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">${getIcon('trash-2', 'w-4 h-4')}</button>
                     </div></td>
                 </tr>`,
             totalLabel: 'Total Monthly Cost', totalValue: state.subscriptions.reduce((sum, i) => sum + i.amount, 0)
@@ -374,118 +508,178 @@ document.addEventListener('DOMContentLoaded', () => {
         createCrudPage({
             pageTitle: 'Overtime Log', itemType: 'Overtime', data: state.overtime,
             tableHeaders: [
-                { label: 'Date' }, { label: 'Time' }, { label: 'Allocation' }, { label: 'Status' }, { label: 'Amount', align: 'right' }, { label: 'Actions', align: 'right' }
+                { label: 'Date' }, { label: 'Time' }, { label: 'Rate/hr', align: 'right' }, { label: 'Allocation' }, { label: 'Status' }, { label: 'Amount', align: 'right' }, { label: 'Actions', align: 'right' }
             ],
             rowRenderer: item => `
                 <tr class="border-b border-gray-200 dark:border-gray-700 last:border-0">
                     <td class="p-3 font-medium text-gray-800 dark:text-gray-200">${item.date}</td>
                     <td class="p-3 text-sm text-gray-600 dark:text-gray-300">${item.time}</td>
+                    <td class="p-3 text-right text-sm text-gray-600 dark:text-gray-300">${formatCurrency(item.hourlyRate)}</td>
                     <td class="p-3 text-sm text-gray-600 dark:text-gray-300">${item.allocation}</td>
                     <td class="p-3">${statusBadge(item.status)}</td>
                     <td class="p-3 text-right font-semibold text-green-500">${formatCurrency(item.amount)}</td>
                     <td class="p-3 text-right"><div class="flex justify-end items-center space-x-2">
-                        <button data-action="edit" data-id="${item.id}" class="p-2 text-gray-500 hover:text-blue-500 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">${getIcon('pencil', 'w-4 h-4')}</button>
-                        <button data-action="delete" data-id="${item.id}" class="p-2 text-gray-500 hover:text-red-500 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">${getIcon('trash-2', 'w-4 h-4')}</button>
+                        <button data-action="edit" data-id="${item.id}" data-type="overtime" class="p-2 text-gray-500 hover:text-blue-500 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">${getIcon('pencil', 'w-4 h-4')}</button>
+                        <button data-action="delete" data-id="${item.id}" data-type="overtime" class="p-2 text-gray-500 hover:text-red-500 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">${getIcon('trash-2', 'w-4 h-4')}</button>
                     </div></td>
                 </tr>`,
             totalLabel: 'Total Overtime Earned', totalValue: state.overtime.reduce((sum, i) => sum + i.amount, 0)
         });
     }
 
+    // --- SALARY CALCULATOR PAGE ---
     function renderSalaryCalculatorPage() {
         mainContent.innerHTML = `
             <div class="space-y-6">
                 <h2 class="text-3xl font-bold text-gray-800 dark:text-gray-200">Salary Calculator (UK)</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md space-y-4">
-                        <div>
-                            <label for="gross-salary" class="text-sm font-medium text-gray-700 dark:text-gray-300">Gross Salary (£)</label>
-                            <div class="flex mt-1">
-                                <input type="number" id="gross-salary" value="35000" class="flex-grow w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-l-md dark:text-gray-200">
-                                <select id="salary-period" class="px-3 py-2 bg-gray-50 dark:bg-gray-600 border-t border-r border-b border-gray-300 dark:border-gray-600 rounded-r-md dark:text-gray-200">
-                                    <option>Annually</option>
-                                    <option>Monthly</option>
-                                </select>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md space-y-6">
+                        <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-200">Enter Your Details</h3>
+                        <form id="salary-calculator-form" class="space-y-4">
+                            <div>
+                                <label for="gross-salary" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Gross Salary (£)</label>
+                                <div class="flex mt-1">
+                                    <input type="number" name="gross-salary" id="gross-salary" class="flex-grow block w-full rounded-l-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-gray-900 dark:text-gray-200 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-500 sm:text-sm" placeholder="e.g., 35000">
+                                    <select id="salary-period" name="salary-period" class="block rounded-r-md border-l-0 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 px-3 py-2 text-gray-900 dark:text-gray-200 focus:ring-2 focus:ring-inset focus:ring-blue-500">
+                                        <option>Annually</option>
+                                        <option>Monthly</option>
+                                    </select>
+                                </div>
                             </div>
-                        </div>
-                        <div>
-                            <label for="tax-code" class="text-sm font-medium text-gray-700 dark:text-gray-300">Tax Code</label>
-                            <input type="text" id="tax-code" value="1257L" class="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md dark:text-gray-200">
-                        </div>
-                        <button id="calculate-salary-btn" class="w-full flex items-center justify-center bg-blue-500 text-white px-4 py-2 rounded-lg shadow-md hover:bg-blue-600 transition-colors">
-                            ${getIcon('calculator', 'w-5 h-5 mr-2')} Calculate
-                        </button>
+                            <div>
+                                <label for="tax-code" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tax Code</label>
+                                <input type="text" name="tax-code" id="tax-code" value="1257L" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-gray-900 dark:text-gray-200 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-500 sm:text-sm">
+                            </div>
+                            <button type="submit" class="w-full bg-blue-500 text-white px-6 py-3 rounded-lg shadow-md hover:bg-blue-600 transition-colors flex items-center justify-center">${getIcon('calculator', 'w-5 h-5 mr-2')} Calculate</button>
+                        </form>
                     </div>
-                    <div id="salary-results" class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md space-y-2">
-                        <!-- Results will be rendered here -->
+                    <div id="salary-results" class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md space-y-6 hidden">
+                        <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-200">Results Breakdown</h3>
+                        <div id="take-home-summary"></div>
+                        <div id="annual-breakdown"></div>
+                        <div id="monthly-breakdown"></div>
                     </div>
                 </div>
-            </div>`;
-        calculateAndRenderSalary(); // Initial calculation
+            </div>
+        `;
+    }
+    
+    function calculateSalary(salary, period, taxCode) {
+        // Step 1: Standardize salary to annual
+        const grossAnnual = period === 'Monthly' ? salary * 12 : salary;
+
+        // Step 2: Calculate Personal Allowance from Tax Code
+        let personalAllowance = 12570; // Default
+        const taxCodeMatch = taxCode.match(/^(\d+)/);
+        if (taxCodeMatch) {
+            personalAllowance = parseInt(taxCodeMatch[1], 10) * 10;
+        }
+        
+        // Taper personal allowance for high earners
+        const PERSONAL_ALLOWANCE_LIMIT = 100000;
+        if (grossAnnual > PERSONAL_ALLOWANCE_LIMIT) {
+            personalAllowance -= Math.floor((grossAnnual - PERSONAL_ALLOWANCE_LIMIT) / 2);
+            if (personalAllowance < 0) personalAllowance = 0;
+        }
+
+        const taxableIncome = Math.max(0, grossAnnual - personalAllowance);
+        let tax = 0;
+
+        // Step 3: Income Tax Calculation (England/NI rates 2024/25)
+        const BASIC_RATE_LIMIT = 37700;
+        const HIGHER_RATE_LIMIT = 125140;
+
+        if (taxableIncome > 0) {
+            if (taxableIncome <= BASIC_RATE_LIMIT) {
+                tax = taxableIncome * 0.20;
+            } else if (taxableIncome <= HIGHER_RATE_LIMIT) {
+                tax = (BASIC_RATE_LIMIT * 0.20) + ((taxableIncome - BASIC_RATE_LIMIT) * 0.40);
+            } else {
+                tax = (BASIC_RATE_LIMIT * 0.20) + ((HIGHER_RATE_LIMIT - BASIC_RATE_LIMIT) * 0.40) + ((taxableIncome - HIGHER_RATE_LIMIT) * 0.45);
+            }
+        }
+
+        // Step 4: National Insurance Calculation (Class 1 rates 2024/25)
+        const NI_LOWER_THRESHOLD = 12570;
+        const NI_UPPER_THRESHOLD = 50270;
+        let nationalInsurance = 0;
+
+        if (grossAnnual > NI_LOWER_THRESHOLD) {
+            const earningsInMainBand = Math.min(grossAnnual, NI_UPPER_THRESHOLD) - NI_LOWER_THRESHOLD;
+            if (earningsInMainBand > 0) {
+                nationalInsurance += earningsInMainBand * 0.08;
+            }
+            if (grossAnnual > NI_UPPER_THRESHOLD) {
+                const earningsInUpperBand = grossAnnual - NI_UPPER_THRESHOLD;
+                nationalInsurance += earningsInUpperBand * 0.02;
+            }
+        }
+        
+        const takeHomePay = grossAnnual - tax - nationalInsurance;
+
+        return {
+            grossAnnual,
+            personalAllowance,
+            taxableAnnual: taxableIncome,
+            taxAnnual: tax,
+            niAnnual: nationalInsurance,
+            netAnnual: takeHomePay,
+        };
     }
 
-    // --- SALARY CALCULATION LOGIC ---
-    function calculateAndRenderSalary() {
-        const salaryInput = parseFloat(document.getElementById('gross-salary').value) || 0;
-        const period = document.getElementById('salary-period').value;
-        const taxCode = document.getElementById('tax-code').value || '1257L';
-        
-        const annualSalary = period === 'Monthly' ? salaryInput * 12 : salaryInput;
-
-        let personalAllowance = (parseInt(taxCode.match(/\d+/)) || 0) * 10;
-        if (annualSalary > 100000) {
-            personalAllowance -= Math.floor((annualSalary - 100000) / 2);
-            personalAllowance = Math.max(0, personalAllowance);
-        }
-        
-        const taxableIncome = Math.max(0, annualSalary - personalAllowance);
-
-        let tax = 0;
-        if (taxableIncome > 0) {
-            if (taxableIncome <= 37700) {
-                tax = taxableIncome * 0.20;
-            } else if (taxableIncome <= 125140) {
-                tax = (37700 * 0.20) + ((taxableIncome - 37700) * 0.40);
-            } else {
-                tax = (37700 * 0.20) + ((125140 - 37700) * 0.40) + ((taxableIncome - 125140) * 0.45);
-            }
-        }
-
-        let ni = 0;
-        if (annualSalary > 12570) {
-            if (annualSalary <= 50270) {
-                ni = (annualSalary - 12570) * 0.08;
-            } else {
-                ni = ((50270 - 12570) * 0.08) + ((annualSalary - 50270) * 0.02);
-            }
-        }
-
-        const totalDeductions = tax + ni;
-        const netPay = annualSalary - totalDeductions;
-
+    function displaySalaryResults(results) {
         const resultsContainer = document.getElementById('salary-results');
-        resultsContainer.innerHTML = `
-            <h3 class="text-lg font-bold text-gray-800 dark:text-gray-200 pb-2 border-b dark:border-gray-700">Results Breakdown</h3>
-            <div class="text-center py-4 border-b dark:border-gray-700">
-                <p class="text-sm text-gray-500 dark:text-gray-400">Annual Take-Home Pay</p>
-                <p class="text-3xl font-bold text-green-500">${formatCurrency(netPay)}</p>
+        const summaryContainer = document.getElementById('take-home-summary');
+        const annualContainer = document.getElementById('annual-breakdown');
+        const monthlyContainer = document.getElementById('monthly-breakdown');
+
+        summaryContainer.innerHTML = `
+            <div class="space-y-4">
+                <div>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Annual Take-Home Pay</p>
+                    <p class="text-3xl font-bold text-green-500">${formatCurrency(results.netAnnual)}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Monthly Take-Home Pay</p>
+                    <p class="text-3xl font-bold text-green-500">${formatCurrency(results.netAnnual / 12)}</p>
+                </div>
             </div>
-             <div class="text-center py-4">
-                <p class="text-sm text-gray-500 dark:text-gray-400">Monthly Take-Home Pay</p>
-                <p class="text-2xl font-bold text-green-500">${formatCurrency(netPay / 12)}</p>
+        `;
+
+        annualContainer.innerHTML = `
+            <div>
+                <h4 class="font-semibold text-gray-700 dark:text-gray-300 mb-2">Annual Breakdown</h4>
+                <dl class="space-y-2 text-sm">
+                    ${resultRow('Gross Pay', results.grossAnnual)}
+                    ${resultRow('Personal Allowance', results.personalAllowance)}
+                    ${resultRow('Taxable Income', results.taxableAnnual)}
+                    ${resultRow('Income Tax', -results.taxAnnual, 'text-red-500')}
+                    ${resultRow('National Insurance', -results.niAnnual, 'text-red-500')}
+                    ${resultRow('Take Home', results.netAnnual, 'text-green-500', true)}
+                </dl>
             </div>
-            <div class="text-xs space-y-1 pt-4 mt-4 border-t dark:border-gray-700 text-gray-600 dark:text-gray-400">
-                 <h4 class="font-bold text-sm mb-2 text-gray-800 dark:text-gray-200">Annual Breakdown</h4>
-                <div class="flex justify-between"><span>Gross Pay:</span> <span class="font-mono">${formatCurrency(annualSalary)}</span></div>
-                <div class="flex justify-between"><span>Personal Allowance:</span> <span class="font-mono">${formatCurrency(personalAllowance)}</span></div>
-                <div class="flex justify-between"><span>Taxable Income:</span> <span class="font-mono">${formatCurrency(taxableIncome)}</span></div>
-                <div class="flex justify-between"><span>Income Tax:</span> <span class="font-mono">-${formatCurrency(tax)}</span></div>
-                <div class="flex justify-between"><span>National Insurance:</span> <span class="font-mono">-${formatCurrency(ni)}</span></div>
-                <h4 class="font-bold text-sm pt-4 mb-2 text-gray-800 dark:text-gray-200">Monthly Breakdown</h4>
-                <div class="flex justify-between"><span>Gross Monthly:</span> <span class="font-mono">${formatCurrency(annualSalary / 12)}</span></div>
-                <div class="flex justify-between"><span>Income Tax:</span> <span class="font-mono">-${formatCurrency(tax / 12)}</span></div>
-                <div class="flex justify-between"><span>National Insurance:</span> <span class="font-mono">-${formatCurrency(ni / 12)}</span></div>
-                <div class="flex justify-between font-bold text-gray-800 dark:text-gray-200"><span>Take-Home:</span> <span class="font-mono">${formatCurrency(netPay / 12)}</span></div>
+        `;
+
+        monthlyContainer.innerHTML = `
+            <div>
+                <h4 class="font-semibold text-gray-700 dark:text-gray-300 mb-2">Monthly Breakdown</h4>
+                <dl class="space-y-2 text-sm">
+                    ${resultRow('Gross Pay', results.grossAnnual / 12)}
+                    ${resultRow('Income Tax', -(results.taxAnnual / 12), 'text-red-500')}
+                    ${resultRow('National Insurance', -(results.niAnnual / 12), 'text-red-500')}
+                    ${resultRow('Take Home', results.netAnnual / 12, 'text-green-500', true)}
+                </dl>
+            </div>
+        `;
+        
+        resultsContainer.classList.remove('hidden');
+    }
+
+    function resultRow(label, value, colorClass = 'text-gray-700 dark:text-gray-300', isBold = false) {
+        return `
+            <div class="flex justify-between items-center border-t border-gray-200 dark:border-gray-700/50 pt-2">
+                <dt class="text-gray-600 dark:text-gray-400">${label}</dt>
+                <dd class="${colorClass} ${isBold ? 'font-bold' : 'font-medium'}">${formatCurrency(value)}</dd>
             </div>
         `;
     }
@@ -504,83 +698,147 @@ document.addEventListener('DOMContentLoaded', () => {
     // Sidebar Toggle
     document.getElementById('open-sidebar-btn').addEventListener('click', () => document.getElementById('sidebar').classList.remove('-translate-x-full'));
     document.getElementById('close-sidebar-btn').addEventListener('click', () => document.getElementById('sidebar').classList.add('-translate-x-full'));
+
+    // App Entry / Exit
+    document.getElementById('enter-dashboard-btn').addEventListener('click', () => {
+        document.getElementById('landing-page').classList.add('hidden');
+        document.getElementById('app-container').classList.remove('hidden');
+        document.getElementById('app-container').classList.add('flex');
+        saveState(); // Save initial state on first entry if it doesn't exist
+        renderPage();
+    });
+    document.getElementById('logout-btn').addEventListener('click', (e) => {
+        e.preventDefault();
+        localStorage.removeItem('financeMgtState');
+        window.location.reload();
+    });
     
     // --- UNIFIED CLICK HANDLER FOR THE ENTIRE DOCUMENT ---
     document.body.addEventListener('click', e => {
         const target = e.target;
-        const button = target.closest('button');
-        const navItem = target.closest('.nav-item');
-
+        
         // Page Navigation
-        if (navItem) {
+        const navItem = target.closest('.nav-item');
+        if (navItem && navItem.dataset.page) {
             e.preventDefault();
-            if (navItem.id === 'logout-btn') {
-                localStorage.removeItem('financeMgtState');
-                window.location.reload();
-            } else if (navItem.dataset.page) {
-                state.activePage = navItem.dataset.page;
-                saveState();
-                renderPage();
-                if (window.innerWidth < 1024) {
-                    document.getElementById('sidebar').classList.add('-translate-x-full');
-                }
+            state.activePage = navItem.dataset.page;
+            saveState();
+            renderPage();
+            if (window.innerWidth < 1024) {
+                document.getElementById('sidebar').classList.add('-translate-x-full');
             }
             return;
         }
         
-        if (target.closest('#enter-dashboard-btn')) {
-            document.getElementById('landing-page').classList.add('hidden');
-            document.getElementById('app-container').classList.remove('hidden');
-            document.getElementById('app-container').classList.add('flex');
-            saveState(); // Save initial state on first entry
-            renderPage();
+        // Accordion Toggle
+        const accordionHeader = target.closest('.accordion-header');
+        if (accordionHeader) {
+            const content = accordionHeader.nextElementSibling;
+            const icon = accordionHeader.querySelector('[data-lucide="chevron-down"]');
+            if (content.style.maxHeight && content.style.maxHeight !== '0px') {
+                content.style.maxHeight = null;
+                icon.style.transform = 'rotate(0deg)';
+            } else {
+                content.style.maxHeight = content.scrollHeight + "px";
+                icon.style.transform = 'rotate(180deg)';
+            }
             return;
         }
 
-        if (!button) return; // Exit if the click was not on a button
+        const actionButton = target.closest('button[data-action]');
+        if (!actionButton) return;
 
-        // Salary Calculator
-        if (button.id === 'calculate-salary-btn') {
-            calculateAndRenderSalary();
+        // Handle actions within the main content (opening modals, changing year)
+        if (mainContent.contains(actionButton)) {
+            const action = actionButton.dataset.action;
+
+            if (action === 'prev-year') {
+                state.currentYear--;
+                renderPage();
+                return;
+            }
+            if (action === 'next-year') {
+                state.currentYear++;
+                renderPage();
+                return;
+            }
+
+            const id = actionButton.dataset.id ? parseInt(actionButton.dataset.id, 10) : null;
+            const type = actionButton.dataset.type || state.activePage;
+            
+            const pageConfig = {
+                income: { title: 'Income Source', form: getMonthlyIncomeForm },
+                budget: { title: 'Budget Item', form: getBudgetForm },
+                subscriptions: { title: 'Subscription', form: getSubscriptionForm },
+                overtime: { title: 'Overtime Entry', form: getOvertimeForm },
+            }[type];
+
+            if (!pageConfig) return;
+
+            if (action === 'add') {
+                openModal(`Add New ${pageConfig.title}`, pageConfig.form());
+            } else if (action === 'edit') {
+                const month = actionButton.dataset.month;
+                const item = type === 'income' ? state.income[state.currentYear][month].find(i => i.id === id) :
+                             type === 'budget' ? state.budgets[state.currentYear][month].find(i => i.id === id) :
+                             state[type].find(i => i.id === id);
+                openModal(`Edit ${pageConfig.title}`, pageConfig.form(item, month));
+            } else if (action === 'delete') {
+                const month = actionButton.dataset.month;
+                const item = type === 'income' ? state.income[state.currentYear][month].find(i => i.id === id) :
+                             type === 'budget' ? state.budgets[state.currentYear][month].find(i => i.id === id) :
+                             state[type].find(i => i.id === id);
+                openModal(`Confirm Deletion`, `
+                    <div class="p-6"><p class="text-gray-700 dark:text-gray-300">Are you sure you want to delete "${item.name || item.allocation}"?</p></div>
+                    <div class="p-4 bg-gray-50 dark:bg-gray-800/50 border-t flex justify-end space-x-2">
+                        <button data-action="close-modal" class="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Cancel</button>
+                        <button data-action="confirm-delete" data-type="${type}" data-month="${month || ''}" data-id="${id}" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">Delete</button>
+                    </div>`);
+            }
             return;
         }
 
-        const action = button.dataset.action;
-        const id = button.dataset.id ? parseInt(button.dataset.id, 10) : null;
-        
-        // Modal Actions
-        if (action === 'close-modal') {
-            closeModal();
-            return;
-        }
-
-        // CRUD Actions
-        const pageConfig = {
-            income: { title: 'Income Source', stateKey: 'incomeSources', form: getIncomeForm },
-            budget: { title: 'Budget Item', stateKey: 'budgets', form: getBudgetForm },
-            subscriptions: { title: 'Subscription', stateKey: 'subscriptions', form: getSubscriptionForm },
-            overtime: { title: 'Overtime Entry', stateKey: 'overtime', form: getOvertimeForm },
-        }[state.activePage];
-
-        if (action === 'add' && pageConfig) {
-            openModal(`Add New ${pageConfig.title}`, pageConfig.form());
-        } else if (action === 'edit' && pageConfig) {
-            const item = state[pageConfig.stateKey].find(i => i.id === id);
-            openModal(`Edit ${pageConfig.title}`, pageConfig.form(item));
-        } else if (action === 'delete' && pageConfig) {
-            const item = state[pageConfig.stateKey].find(i => i.id === id);
-            openModal(`Confirm Deletion`, `
-                <div class="p-6"><p class="text-gray-700 dark:text-gray-300">Are you sure you want to delete "${item.name || item.allocation}"?</p></div>
-                <div class="p-4 bg-gray-50 dark:bg-gray-800/50 border-t flex justify-end space-x-2">
-                    <button data-action="close-modal" class="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Cancel</button>
-                    <button data-action="confirm-delete" data-id="${id}" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">Delete</button>
-                </div>`);
-        } else if (action === 'confirm-delete') {
-            if (pageConfig) { // Ensure we are on a valid CRUD page
-                state[pageConfig.stateKey] = state[pageConfig.stateKey].filter(item => item.id !== id);
+        // Handle actions within the modal (closing, confirming)
+        if (modalContainer.contains(actionButton)) {
+            const action = actionButton.dataset.action;
+            if (action === 'close-modal') {
+                closeModal();
+            } else if (action === 'confirm-delete') {
+                const id = parseInt(actionButton.dataset.id, 10);
+                const type = actionButton.dataset.type;
+                const month = actionButton.dataset.month;
+                
+                if (type === 'income') {
+                    state.income[state.currentYear][month] = state.income[state.currentYear][month].filter(item => item.id !== id);
+                } else if (type === 'budget') {
+                    state.budgets[state.currentYear][month] = state.budgets[state.currentYear][month].filter(item => item.id !== id);
+                } else {
+                    state[type] = state[type].filter(item => item.id !== id);
+                }
+                
                 saveState();
                 closeModal();
                 renderPage();
+            }
+        }
+    });
+
+    mainContent.addEventListener('submit', e => {
+        if (e.target.id === 'salary-calculator-form') {
+            e.preventDefault();
+            const salaryInput = document.getElementById('gross-salary');
+            const periodInput = document.getElementById('salary-period');
+            const taxCodeInput = document.getElementById('tax-code');
+
+            const grossSalary = parseFloat(salaryInput.value);
+            const period = periodInput.value;
+            const taxCode = taxCodeInput.value;
+
+            if (!isNaN(grossSalary) && grossSalary > 0) {
+                const results = calculateSalary(grossSalary, period, taxCode);
+                displaySalaryResults(results);
+            } else {
+                 document.getElementById('salary-results').classList.add('hidden');
             }
         }
     });
@@ -589,33 +847,73 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         const form = e.target;
         const id = form.dataset.id ? parseInt(form.dataset.id, 10) : null;
-        const stateKey = {
-            income: 'incomeSources', budget: 'budgets', subscriptions: 'subscriptions', overtime: 'overtime'
-        }[state.activePage];
-
+        const type = form.dataset.type;
+        
         const formData = new FormData(form);
         const newItem = { id: id || Date.now() };
         for (let [key, value] of formData.entries()) {
-            newItem[key] = isNaN(value) || key === 'time' || key === 'date' || value === '' ? value : parseFloat(value);
+            newItem[key] = isNaN(value) || ['time', 'date', 'month'].includes(key) || value === '' ? value : parseFloat(value);
+        }
+        
+        if (type === 'overtime') {
+            const duration = calculateDuration(newItem.time);
+            newItem.amount = duration * (newItem.hourlyRate || 0);
         }
 
-        if (id) { // Editing
-            state[stateKey] = state[stateKey].map(item => item.id === id ? newItem : item);
-        } else { // Adding
-            state[stateKey].push(newItem);
+        if (type === 'income' || type === 'budget') {
+            const month = newItem.month;
+            const stateKey = type === 'income' ? 'income' : 'budgets';
+            delete newItem.month;
+            if (id) {
+                const originalMonth = form.dataset.originalMonth;
+                if (originalMonth !== month) {
+                    state[stateKey][state.currentYear][originalMonth] = state[stateKey][state.currentYear][originalMonth].filter(i => i.id !== id);
+                    state[stateKey][state.currentYear][month].push(newItem);
+                } else {
+                    state[stateKey][state.currentYear][month] = state[stateKey][state.currentYear][month].map(item => item.id === id ? newItem : item);
+                }
+            } else {
+                state[stateKey][state.currentYear][month].push(newItem);
+            }
+        } else {
+             if (id) {
+                state[type] = state[type].map(item => item.id === id ? newItem : item);
+            } else {
+                state[type].push(newItem);
+            }
         }
+        
         saveState();
         closeModal();
         renderPage();
+    });
+    
+    modalContainer.addEventListener('input', e => {
+        const form = e.target.closest('#overtime-form');
+        if (!form) return;
+        
+        const timeInput = form.querySelector('#overtime-time');
+        const rateInput = form.querySelector('#overtime-rate');
+        const amountInput = form.querySelector('#overtime-amount');
+
+        const duration = calculateDuration(timeInput.value);
+        const rate = parseFloat(rateInput.value) || 0;
+        
+        amountInput.value = (duration * rate).toFixed(2);
     });
 
     // --- FORM RENDERERS ---
     const formInputClasses = "mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md dark:text-gray-200";
     
-    function getIncomeForm(item = {}) {
+    function getMonthlyIncomeForm(item = {}, month = '') {
+        const months = Object.keys(state.income[state.currentYear]);
+        const currentMonth = new Date().toLocaleString('default', { month: 'long' });
         return `
-            <form data-id="${item.id || ''}">
+            <form data-id="${item.id || ''}" data-type="income" data-original-month="${month}">
                 <div class="p-6 space-y-4">
+                    <div><label class="text-sm font-medium text-gray-700 dark:text-gray-300">Month</label>
+                        <select name="month" class="${formInputClasses}">${months.map(m => `<option ${ (month || currentMonth) === m ? 'selected' : ''}>${m}</option>`).join('')}</select>
+                    </div>
                     <div><label class="text-sm font-medium text-gray-700 dark:text-gray-300">Source Name</label><input type="text" name="name" value="${item.name || ''}" class="${formInputClasses}" required></div>
                     <div><label class="text-sm font-medium text-gray-700 dark:text-gray-300">Amount (£)</label><input type="number" step="0.01" name="amount" value="${item.amount || ''}" class="${formInputClasses}" required></div>
                     <div><label class="text-sm font-medium text-gray-700 dark:text-gray-300">Type</label><select name="type" class="${formInputClasses}"><option ${item.type === 'Primary' ? 'selected' : ''}>Primary</option><option ${item.type === 'Side Hustle' ? 'selected' : ''}>Side Hustle</option><option ${item.type === 'Other' ? 'selected' : ''}>Other</option></select></div>
@@ -624,15 +922,19 @@ document.addEventListener('DOMContentLoaded', () => {
             </form>`;
     }
     
-    function getBudgetForm(item = {}) {
+    function getBudgetForm(item = {}, month = '') {
+        const months = Object.keys(state.budgets[state.currentYear]);
+        const currentMonth = new Date().toLocaleString('default', { month: 'long' });
         const categories = Object.keys(categoryIcons).filter(c => c !== 'Income');
         return `
-            <form data-id="${item.id || ''}">
+            <form data-id="${item.id || ''}" data-type="budget" data-original-month="${month}">
                 <div class="p-6 space-y-4">
+                    <div><label class="text-sm font-medium text-gray-700 dark:text-gray-300">Month</label>
+                        <select name="month" class="${formInputClasses}">${months.map(m => `<option ${ (month || currentMonth) === m ? 'selected' : ''}>${m}</option>`).join('')}</select>
+                    </div>
                     <div><label class="text-sm font-medium text-gray-700 dark:text-gray-300">Item Name</label><input type="text" name="name" value="${item.name || ''}" class="${formInputClasses}" required></div>
                     <div><label class="text-sm font-medium text-gray-700 dark:text-gray-300">Amount (£)</label><input type="number" step="0.01" name="amount" value="${item.amount || ''}" class="${formInputClasses}" required></div>
                     <div><label class="text-sm font-medium text-gray-700 dark:text-gray-300">Category</label><select name="category" class="${formInputClasses}">${categories.map(c => `<option ${item.category === c ? 'selected' : ''}>${c}</option>`).join('')}</select></div>
-                    <div><label class="text-sm font-medium text-gray-700 dark:text-gray-300">Due Date</label><input type="date" name="dueDate" value="${item.dueDate || ''}" class="${formInputClasses}"></div>
                     <div><label class="text-sm font-medium text-gray-700 dark:text-gray-300">Status</label><select name="status" class="${formInputClasses}"><option ${item.status === 'Upcoming' ? 'selected' : ''}>Upcoming</option><option ${item.status === 'Paid' ? 'selected' : ''}>Paid</option><option ${item.status === 'Overdue' ? 'selected' : ''}>Overdue</option><option ${item.status === 'Ongoing' ? 'selected' : ''}>Ongoing</option></select></div>
                 </div>
                 <div class="p-4 bg-gray-50 dark:bg-gray-800/50 border-t flex justify-end"><button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">Save</button></div>
@@ -641,7 +943,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     function getSubscriptionForm(item = {}) {
         return `
-            <form data-id="${item.id || ''}">
+            <form data-id="${item.id || ''}" data-type="subscriptions">
                 <div class="p-6 space-y-4">
                     <div><label class="text-sm font-medium text-gray-700 dark:text-gray-300">Name</label><input type="text" name="name" value="${item.name || ''}" class="${formInputClasses}" required></div>
                     <div><label class="text-sm font-medium text-gray-700 dark:text-gray-300">Amount (£)</label><input type="number" step="0.01" name="amount" value="${item.amount || ''}" class="${formInputClasses}" required></div>
@@ -652,13 +954,35 @@ document.addEventListener('DOMContentLoaded', () => {
             </form>`;
     }
     
+    function calculateDuration(timeString) {
+        if (!timeString || !timeString.includes(' - ')) return 0;
+        const parts = timeString.split(' - ');
+        const startTime = parts[0].split(':');
+        const endTime = parts[1].split(':');
+
+        if (startTime.length !== 2 || endTime.length !== 2) return 0;
+
+        const startHour = parseInt(startTime[0], 10);
+        const startMinute = parseInt(startTime[1], 10);
+        const endHour = parseInt(endTime[0], 10);
+        const endMinute = parseInt(endTime[1], 10);
+
+        if (isNaN(startHour) || isNaN(startMinute) || isNaN(endHour) || isNaN(endMinute)) return 0;
+
+        const startTotalHours = startHour + startMinute / 60;
+        const endTotalHours = endHour + endMinute / 60;
+
+        return endTotalHours > startTotalHours ? endTotalHours - startTotalHours : 0;
+    }
+
     function getOvertimeForm(item = {}) {
         return `
-            <form data-id="${item.id || ''}">
+            <form id="overtime-form" data-id="${item.id || ''}" data-type="overtime">
                 <div class="p-6 space-y-4">
                     <div><label class="text-sm font-medium text-gray-700 dark:text-gray-300">Date</label><input type="date" name="date" value="${item.date || ''}" class="${formInputClasses}" required></div>
-                    <div><label class="text-sm font-medium text-gray-700 dark:text-gray-300">Time</label><input type="text" name="time" value="${item.time || ''}" placeholder="e.g., 18:00 - 22:00" class="${formInputClasses}" required></div>
-                    <div><label class="text-sm font-medium text-gray-700 dark:text-gray-300">Amount (£)</label><input type="number" step="0.01" name="amount" value="${item.amount || ''}" class="${formInputClasses}" required></div>
+                    <div><label class="text-sm font-medium text-gray-700 dark:text-gray-300">Time</label><input type="text" id="overtime-time" name="time" value="${item.time || ''}" placeholder="e.g., 18:00 - 22:00" class="${formInputClasses}" required></div>
+                    <div><label class="text-sm font-medium text-gray-700 dark:text-gray-300">Hourly Rate (£)</label><input type="number" step="0.01" id="overtime-rate" name="hourlyRate" value="${item.hourlyRate || ''}" class="${formInputClasses}" required></div>
+                    <div><label class="text-sm font-medium text-gray-700 dark:text-gray-300">Amount (£)</label><input type="number" step="0.01" id="overtime-amount" name="amount" value="${item.amount || '0.00'}" class="${formInputClasses} bg-gray-100 dark:bg-gray-800" readonly></div>
                     <div><label class="text-sm font-medium text-gray-700 dark:text-gray-300">Allocation</label><input type="text" name="allocation" value="${item.allocation || ''}" class="${formInputClasses}" required></div>
                     <div><label class="text-sm font-medium text-gray-700 dark:text-gray-300">Status</label><select name="status" class="${formInputClasses}"><option ${item.status === 'Not Started' ? 'selected' : ''}>Not Started</option><option ${item.status === 'Completed' ? 'selected' : ''}>Completed</option></select></div>
                 </div>
